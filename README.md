@@ -1,45 +1,17 @@
-<img src="public/icon.svg" alt="One IP Logo" width="96" height="96" />
+<img src="public/icon.svg" alt="IP 查询工具 Logo" width="96" height="96" />
 
-# One IP
+# IP 查询工具
 
-<p align="left">
-  <img src="https://img.shields.io/badge/React-19-282C34?logo=react&amp;logoColor=61DAFB" alt="React 19" />
-  <img src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&amp;logoColor=white" alt="Vite 8" />
-  <img src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&amp;logoColor=white" alt="TypeScript 6" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&amp;logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/shadcn%2Fui-000000?logo=shadcnui&amp;logoColor=white" alt="shadcn/ui" />
-  <img src="https://img.shields.io/badge/Lucide-F56565?logo=lucide&amp;logoColor=white" alt="Lucide" />
-  <img src="https://img.shields.io/badge/Jotai-000000" alt="Jotai" />
-  <img src="https://img.shields.io/badge/TanStack_Query-FF4154?logo=reactquery&amp;logoColor=white" alt="TanStack Query" />
-  <img src="https://img.shields.io/badge/Cloudflare_Workers-F38020?logo=cloudflareworkers&amp;logoColor=white" alt="Cloudflare Workers" />
-  <img src="https://img.shields.io/badge/Leaflet-199900?logo=leaflet&amp;logoColor=white" alt="Leaflet" />
-  <img src="https://img.shields.io/badge/pnpm-10-F69220?logo=pnpm&amp;logoColor=white" alt="pnpm 10" />
-  <img src="https://img.shields.io/badge/Prettier-F7B93E?logo=prettier&amp;logoColor=black" alt="Prettier" />
-</p>
-
-IP 查询、网络诊断、浏览器检测与 AI 服务状态工具箱。
+IP 查询、网络诊断、浏览器检测与 AI 服务状态工具箱，运行在 Cloudflare Workers 上。
 
 **中文** · [English](README.en.md)
 
-[在线体验](https://ip.huzhihui.com/) · [GitHub](https://github.com/zhihui-hu/one-ip)
+[在线使用](https://ip.minispacex.com/) · [源代码](https://github.com/Venice851007/one-ip) · [问题反馈](https://github.com/Venice851007/one-ip/issues) · [小磊哥の博客](https://www.5201616.xyz)
 
-点击下方按钮，一键部署到 Cloudflare。
+> 本项目基于 [zhihui-hu/one-ip](https://github.com/zhihui-hu/one-ip)（AGPL-3.0）修改，由 [Venice851007](https://github.com/Venice851007) 于 2026-09-27 起维护。
+> 主要改动：品牌替换、移除 Claude 环境评分与 WebMCP、增加服务端 SEO 元数据、sitemap/robots、可选的广告位与统计配置。详见 Git 提交历史。
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fzhihui-hu%2Fone-ip)
-
-## Cloudflare 部署教程
-
-1. [Fork 本项目](https://github.com/zhihui-hu/one-ip/fork)到你的 GitHub 账号。
-2. 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)，进入 **Workers & Pages**，创建 Worker，选择导入 Git 仓库。
-3. 连接 GitHub，选择你的 `one-ip` Fork，生产分支填 `main`。
-4. 构建命令填 `pnpm build`，部署命令填 `pnpm deploy`。使用 Node.js 24 和 pnpm 10.32.1，根目录保持默认。
-5. 点击部署，完成后打开 `workers.dev` 地址。自定义域名在 Worker 设置中绑定。
-
-项目使用 **Cloudflare Workers + Static Assets**，`/api/*` 接口需要 Worker。基础功能无需应用环境变量或 API Key。Turnstile 和 reCAPTCHA 的配置见“验证体验”。
-
-国内网络访问地图时，建议在 Worker → Settings → Variables and Secrets 配置 `TIANDITU_TOKEN`（也可以用 `pnpm exec wrangler secret put TIANDITU_TOKEN`）。配置后地图优先使用天地图，失败时回退到 OpenStreetMap；未配置时保持 OpenStreetMap。
-
-Workers Builds 会在 `main` 收到提交时构建和部署。上方按钮使用原项目地址；需要保留 Fork 关系和更新工作流时，请按教程导入你的 Fork。
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2FVenice851007%2Fone-ip)
 
 ## 功能
 
@@ -57,155 +29,94 @@ Workers Builds 会在 `main` 收到提交时构建和部署。上方按钮使用
 | 使用体验         | 中英文、深浅主题、移动端布局与底部抽屉、查询历史、二维码分享与复制链接                                    |
 | 可选验证体验     | Cloudflare Turnstile、Google reCAPTCHA v3；入口需要配置和域名匹配                                         |
 
-第三方服务的限流和跨域限制会影响查询结果。HTTP 耗时与 ICMP Ping 的测量方式不同。IP 类型和信誉分供参考，不代表 AI 平台的官方判断。
-
-### WebMCP
-
-支持浏览器原生 WebMCP：在提供 `document.modelContext` 的浏览器中，页面会注册结构化工具，覆盖 IP / WHOIS / 子域名查询、网络与 AI 检测、服务状态及浏览器诊断。`one_ip_catalog` 可列出支持的站点、平台和页面；`one_ip_open_page` 可导航到需要用户操作的权限与人机校验页面。工具使用现有数据源和请求限制，支持取消；不支持 WebMCP 的浏览器仍可正常使用网页。
-
-WebMCP 仍处于实验阶段。本地可在 Chrome 开启 `chrome://flags/#enable-webmcp-testing` 后检查 `await document.modelContext.getTools()`；线上 Chrome 访问需要参与 [WebMCP Origin Trial](https://developer.chrome.com/docs/ai/webmcp/) 或等待浏览器正式支持。本站没有内置试验令牌。工具只在当前页面同源暴露，不向跨源 iframe 授权。查询结果可能包含第三方数据；浏览器指纹、出口 IP 和 WebRTC 结果可能涉及隐私，调用前应由用户决定是否交给代理处理。
+第三方服务的限流和跨域限制会影响查询结果。IP 类型和信誉分来自第三方数据源，仅供参考。
 
 ## 终端与 API
 
-部署此版本后，可通过 `GET /api/ip/health` 查询 IP 健康度，无需 API Key。
+`GET /api/ip/health` 查询 IP 健康度，无需 API Key。
 
 ```bash
-# 当前请求的公网出口 IP，终端文本
-curl -fsS 'https://ip.huzhihui.com/api/ip/health?format=text'
-
-# 默认返回 JSON，便于脚本处理
-curl -fsS 'https://ip.huzhihui.com/api/ip/health'
-
-# 指定公网 IPv4 或 IPv6
-curl -fsS 'https://ip.huzhihui.com/api/ip/health?ip=1.1.1.1'
-curl -fsS 'https://ip.huzhihui.com/api/ip/health?ip=2606:4700:4700::1111&format=text'
+curl -fsS 'https://ip.minispacex.com/api/ip/health?format=text'
+curl -fsS 'https://ip.minispacex.com/api/ip/health'
+curl -fsS 'https://ip.minispacex.com/api/ip/health?ip=1.1.1.1'
 ```
 
-自部署时替换域名。本地开发使用 `http://127.0.0.1:8787`，必须指定 `ip`。省略 `ip` 时使用 Cloudflare 识别的本次请求出口；经过代理时会查询代理出口。
+返回 `ip`、`checked_at`、`score`（0–100，75 以上 `good`、45–74 `moderate`、低于 45 `poor`）、位置、ISP、ASN 和 `flags`（住宅、数据中心、移动网络、VPN、代理、Tor、爬虫、滥用）。错误返回 JSON `{ "error": "…" }`：400 参数无效、429 限流、503 无法识别访客 IP、502 数据源故障。
 
-返回 `ip`、`checked_at`、`score`、`status`、位置、ISP、ASN 和 `flags`（住宅、数据中心、移动网络、VPN、代理、Tor、爬虫、滥用标记）。信誉分范围 0–100，越高越好；与网页相同，75–100 为 `good`、45–74 为 `moderate`、低于 45 为 `poor`。缺失或无效分数返回 `score: null`、`status: "unknown"`；缺失标记返回 `null`，不视为 `false`。
+## 部署
 
-`format` 支持 `json`（默认）和 `text`。错误始终返回 JSON `{ "error": "…" }`：无效参数为 400、限流为 429、无法识别访客 IP 为 503、数据源故障或地址不匹配为 502。接口沿用现有请求限流，响应不缓存。健康度仅表示第三方 IP 信誉，不包含终端网络测速、浏览器检测或 AI 账号可用性判断。
+站点使用 **Cloudflare Workers + Static Assets**，配置在 `wrangler.toml`：
 
-## 界面预览
+- Worker 名称 `ip-tools`，自定义域名 `ip.minispacex.com`（`routes` 中 `custom_domain = true`，部署时 Cloudflare 自动创建 DNS 记录和证书）。
+- `run_worker_first = ["/*", "!/assets/*"]`：页面请求经过 Worker 注入每个路由的 SEO 元数据；`/assets/*` 构建产物直接由静态资源服务返回；其他文件由 Worker 原样透传。
+- 限流命名空间 `8517001` / `8517002`（账号内唯一即可）。
 
-截图遮盖了 IP、具体位置及运营商 / ASN，数值不是实时结果。
+```bash
+pnpm install --frozen-lockfile   # Node.js >= 24，pnpm 10.32.1
+pnpm build && pnpm test && pnpm lint
+pnpm exec wrangler login
+pnpm exec wrangler deploy --env=""   # 或 make deploy
+```
 
-![桌面首页（已打码）](docs/screenshots/desktop-home-redacted.png)
+用 Workers Builds（连接 GitHub 自动部署）时：构建命令 `pnpm build`，部署命令 `pnpm exec wrangler deploy --env=""`。Workers Builds 和 GitHub Actions（`.github/workflows/pages.yml`，需要 `ENABLE_CF_DEPLOY=true` 与 CF 密钥）二选一。
 
-<table>
-  <tr><th>手机 · 浅色</th><th>手机 · 深色</th></tr>
-  <tr>
-    <td><img src="docs/screenshots/mobile-home-light-redacted.png" alt="手机浅色首页（已打码）" width="360" /></td>
-    <td><img src="docs/screenshots/mobile-home-dark-redacted.png" alt="手机深色首页（已打码）" width="360" /></td>
-  </tr>
-</table>
+国内访问地图建议配置 `TIANDITU_TOKEN`（`pnpm exec wrangler secret put TIANDITU_TOKEN`），未配置时使用 OpenStreetMap。
 
-## 商务合作
+### 上游同步
 
-One IP 面向企业提供闭源商业版本及配套服务，适合网络与浏览器环境检测、AI 服务连通性诊断、批量验收和持续监测等场景。可合作内容包括：
+`Sync upstream` 工作流**默认关闭**（需要仓库变量 `AUTO_SYNC_UPSTREAM=true` 或手动触发）。它会把上游改动直接合并到 `main`，连同自动部署会把未审查的上游品牌、功能和数据源上线，因此本仓库不启用。需要同步时，建议新建分支合并 `zhihui-hu/one-ip` 的 `main`，检查差异后再合并。
 
-- 企业版授权与团队协作
-- 私有化部署与数据隔离
-- 定制开发、系统集成与 API 接入
-- 技术咨询、部署实施与持续支持
+## SEO
 
-如需了解商业版本、私有化部署或定制方案，请发送邮件至 [ip@huzhihui.com](mailto:ip@huzhihui.com)，并说明使用场景、部署方式和预计规模；项目详情可参阅 [GitHub 仓库](https://github.com/zhihui-hu/one-ip)。具体服务范围、数据权限与交付方式以双方约定为准。
+- `src/seo/pages.ts`：每个路由的中英文标题、描述、sitemap 标记和 FAQ。Worker（`public/worker/pages.js`，HTMLRewriter）据此在返回的 HTML 中注入 `<title>`、description、canonical、hreflang（`zh-CN` 默认，`?lang=en` 为英文）、Open Graph / Twitter 卡片、JSON-LD（WebApplication，WHOIS 与 WebRTC 页面另有 FAQPage）。未知路径返回 404 + `noindex`。
+- 前端 `src/components/seo-sync.tsx` 在单页导航后同步标题和 canonical。
+- `public/robots.txt`、`public/sitemap.xml`；修改路由后运行 `pnpm seo:generate` 重新生成 sitemap（测试会检查是否同步）。
+- 站点名、域名、仓库和博客链接集中在 `src/seo/site.json`。
 
-## Fork 更新
+## 广告与统计
 
-在 GitHub 仓库页面点击 **Sync fork → Update branch**。有代码改动时检查差异，通过合并处理冲突。
+默认全部关闭，不加载任何第三方广告或统计脚本。配置写在 `wrangler.toml` 的 `[vars]`（公开 ID，不是密钥），修改后重新部署即可，无需改代码：
 
-定时同步使用 `Sync upstream` 工作流：
+| 变量                     | 说明                                                                        |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `ADSENSE_CLIENT`         | AdSense 发布商 ID，格式 `ca-pub-` + 数字。设置后自动提供 `/ads.txt`         |
+| `ADSENSE_SLOT_HOME`      | 首页结果下方广告位的 slot ID（数字）                                        |
+| `ADSENSE_SLOT_IP`        | IP 详情结果下方广告位                                                       |
+| `ADSENSE_SLOT_TOOL`      | 各工具页底部广告位（IP 详情页除外）                                         |
+| `ADSENSE_SLOT_FOOTER`    | 页脚上方广告位                                                              |
+| `CF_WEB_ANALYTICS_TOKEN` | Cloudflare Web Analytics 站点 token（32 位十六进制），设置后注入官方 beacon |
 
-1. 在 Fork 的 Actions 页面启用工作流。
-2. 在 Settings → Secrets and variables → Actions → **Variables** 添加 `AUTO_SYNC_UPSTREAM=true`。
-3. 工作流在每天 UTC 04:23 检查更新。Actions 页面提供运行入口。
+- 只填 `ADSENSE_CLIENT` 不填 slot 时不显示广告位；格式不对的值会被忽略。
+- 配置广告后页面底部出现 Cookie 同意提示，访客同意后才加载 AdSense。面向欧洲经济区/英国流量时，Google 要求使用经认证的 CMP，可在 AdSense「隐私和消息」中开启 Google 自带的同意消息。
+- 当前 CSP 只限制 `frame-ancestors`（`public/_headers`），不限制脚本来源，所以 AdSense 与 Cloudflare beacon 无需额外放行；以后若收紧 `script-src`，需要放行 `pagead2.googlesyndication.com`、`*.googlesyndication.com`、`*.doubleclick.net`、`static.cloudflareinsights.com`，`connect-src` 放行 `cloudflareinsights.com`。
+- 代码位置：`src/components/ads/`、`src/lib/site-config.ts`、`public/worker/pages.js`。
 
-支持范围是从 `zhihui-hu/one-ip` 创建的 Fork，无需个人访问令牌（PAT）。工作流通过 GitHub 的 `merge-upstream` 接口合并更新，遇到冲突时停止，保留你的提交。需要审核更新时，使用 GitHub 的 Sync fork。
-
-- **Workers Builds**：连接 Fork 的生产分支，在 Cloudflare 构建历史中检查同步提交的部署记录。
-- **GitHub Actions 部署**：同步产生更新时，工作流触发部署任务。`GITHUB_TOKEN` 产生的推送不会触发普通 `push` 工作流。
-- 分支保护阻止合并时，通过 PR 处理。
-- Fork 的定时工作流需要启用。公开仓库 60 天无活动可能导致 GitHub 停用定时任务，恢复入口在 Actions 页面。
-
-参考：[同步 Fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork)、[GITHUB_TOKEN 触发规则](https://docs.github.com/en/actions/concepts/security/github_token)、[定时工作流停用规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows)。
-
-## GitHub Actions 部署（可选）
-
-Workers Builds 和 GitHub Actions 选择一种部署方式，避免重复发布。Actions 默认执行构建和测试；开启部署需要在仓库的 Actions 设置中添加：
-
-| 类型     | 名称                    | 用途                       |
-| -------- | ----------------------- | -------------------------- |
-| Variable | `ENABLE_CF_DEPLOY=true` | 开启部署                   |
-| Secret   | `CLOUDFLARE_API_TOKEN`  | 目标账户的 Worker 部署凭证 |
-| Secret   | `CLOUDFLARE_ACCOUNT_ID` | 目标 Cloudflare 账户 ID    |
-
-推送到 `main`，或运行 `Build and deploy one-ip`。构建和测试通过后进入部署。外部 PR 执行测试，不获得部署凭证。这些凭证用于 CI。
-
-## 本地开发与部署
+## 本地开发
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm worker:dev
 ```
 
-打开 `http://127.0.0.1:8787`。命令启动 Vite 和本地 Worker，支持热更新。启动脚本为本地进程设置 `LOCAL_DEV=true`，无需修改 Wrangler 配置。
-
-```bash
-pnpm build
-pnpm test
-pnpm lint
-
-# 登录 Cloudflare 并部署
-pnpm exec wrangler login
-pnpm deploy
-```
-
-`pnpm deploy` 使用 `dist` 中的构建产物，运行前需要执行 `pnpm build`。`make deploy` 包含版本更新、构建和部署，无需密钥文件。
+打开 `http://127.0.0.1:8787`。命令启动 Vite 和本地 Worker，支持热更新。
 
 ## 验证体验（可选）
 
-选择 Turnstile 或 reCAPTCHA，填写 Site Key、Secret 和允许访问的域名。配置齐全且访问域名匹配时，页面显示“验证体验”入口；缺少配置时隐藏入口。
+选择 Turnstile 或 reCAPTCHA，填写 Site Key、Secret 和允许访问的域名。配置齐全且访问域名匹配时显示“验证体验”入口。
 
 | 提供商       | 配置项                                                          |
 | ------------ | --------------------------------------------------------------- |
 | Turnstile    | `TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET`、`TURNSTILE_HOSTNAMES` |
 | reCAPTCHA v3 | `RECAPTCHA_SITE_KEY`、`RECAPTCHA_SECRET`、`RECAPTCHA_HOSTNAMES` |
 
-本地开发：把[配置示例](docs/config/challenges.env.example)复制到根目录 `.dev.vars`，填写密钥并重启。文件存在时编辑原文件。域名用逗号分隔，填写格式为 `example.com`，提供商控制台需要允许对应域名。
-
-线上部署：在 Worker → Settings → Variables and Secrets 填写配置，或执行 `pnpm exec wrangler secret put 名称`。使用配置文件时，把 `.secrets.example` 复制为 `.secrets.production.env`，填写后运行：
-
-```bash
-node scripts/sync-worker-secrets.mjs production --check
-node scripts/sync-worker-secrets.mjs production
-```
-
-脚本上传非空项，保留已有 Secret，跳过缺失的可选文件。敏感文件在 Git 忽略列表中。Secret 应放在 Worker 配置中，不能放进 `VITE_*`。`/api/browser/challenges` 的 `configured` 字段用于检查配置结果。
-
-reCAPTCHA 使用 v3 评分型密钥。服务端校验 hostname、`browser_check` action 和 score，通过阈值为 0.5。v2 复选框和 Enterprise assessment 不在支持范围内，生产环境不接受 localhost。
+本地开发把[配置示例](docs/config/challenges.env.example)复制为 `.dev.vars`；线上用 `pnpm exec wrangler secret put 名称`，或复制 `.secrets.example` 为 `.secrets.production.env` 后运行 `node scripts/sync-worker-secrets.mjs production`。
 
 ## 项目结构与数据来源
 
-数据来源按版本区分：开源版本使用互联网公开可访问的数据和第三方公开接口；闭源商业版本支持私有化部署，使用私有部署环境中的数据。具体数据范围、留存方式和使用权限以商业方案及合同约定为准。
+- `src/views`：网络、浏览器、AI 与状态页面；`public/worker`：Worker API 与页面元数据注入。
+- Net.Coffee：IP 详情与信誉分；ipwho.is / IP.SB / ipify：IP 归属；Globalping：全球测量；IANA / RDAP：注册资料；各平台官方状态源：运行状态。
+- FingerprintJS 与 CreepJS：浏览器检测，见 [vendor/browser-diagnostics](vendor/browser-diagnostics/README.md)。
 
-- `src/app.css`：界面样式；`src/components/ui`：shadcn/ui 组件。
-- `src/views`：网络、浏览器、AI 与状态页面；`public/worker`：Worker API。
-- Net.Coffee：IP 详情，展示字段取决于接口返回。
-- Globalping：全球测量；IANA / RDAP：注册资料；各平台官方状态源：运行状态。
-- FingerprintJS 与 CreepJS：浏览器检测，模块说明见 [vendor/browser-diagnostics](vendor/browser-diagnostics/README.md)。
+## 许可证
 
-欢迎提交 Issue 和改进建议。分享截图前，请遮盖 IP、位置和指纹标识等隐私信息。
-
-### 人机校验与 Claude 环境对照
-
-人机校验打开页面后自动运行，展示 Turnstile 状态和 reCAPTCHA v3 分数（通过阈值 0.50）；单轮最长等待 45 秒，可重试。
-
-可选的第二个 Turnstile 组件使用 `TURNSTILE_NONINTERACTIVE_SITE_KEY`、`TURNSTILE_NONINTERACTIVE_SECRET` 和 `TURNSTILE_NONINTERACTIVE_HOSTNAMES`，并须在 Cloudflare 中选择 **Non-interactive** 模式；未配置时不显示。
-
-Claude 页面比较 `claude.ai` 与 `claude.com` 出口，并检查 DNS、WebRTC、语言、时区及浏览器特征。检测字典参考 [FuckClaude](https://github.com/LinXiaoTao/FuckClaude)，许可证和来源说明见 `vendor/claude-environment/`。
-
-以上结果仅用于环境排查，不代表 Claude 官方判定、账号风险或封禁概率；页面不读取本机 Claude Code 配置，也不展示 Cloudflare 企业版 Bot Management 分数。
-
-社区友链：[LINUX DO](https://linux.do/) · 真诚、友善、团结、专业。
+[AGPL-3.0](LICENSE)。本仓库是 [zhihui-hu/one-ip](https://github.com/zhihui-hu/one-ip) 的修改版，原作者版权与许可声明保留；线上站点页脚提供本仓库源代码链接。第三方组件许可见 `vendor/browser-diagnostics/LICENSE`（CreepJS，MIT）与 `public/browser-diagnostics.LICENSE.txt`。

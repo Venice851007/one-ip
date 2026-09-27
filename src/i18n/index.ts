@@ -21,10 +21,15 @@ function initialLocale(): Locale {
   } catch {
     /* Storage may be disabled. */
   }
-  return resolveLocale(
-    override === "en" || override === "zh-CN" ? override : saved,
-    navigator.languages,
-  );
+  if (override === "en" || override === "zh-CN") return override;
+  // Crawlers get the Chinese default so rendered content matches the
+  // server-side metadata of URLs without ?lang=en.
+  if (
+    !saved &&
+    /bot|crawler|spider|slurp|bingpreview/i.test(navigator.userAgent)
+  )
+    return "zh-CN";
+  return resolveLocale(saved, navigator.languages);
 }
 
 export const locale = initialLocale();
@@ -52,14 +57,6 @@ export function setLocale(next: Locale) {
 }
 
 export function initializeLocale() {
+  // Title, description and canonical are managed per route by SeoSync.
   document.documentElement.lang = locale;
-  document.title = t("IP 网络工具概览");
-  const description = document.querySelector('meta[name="description"]');
-  if (description)
-    description.setAttribute(
-      "content",
-      t(
-        "IP 查询、网站分流、WebRTC 检测、全球 Ping、服务状态和 WHOIS 查询工具。",
-      ),
-    );
 }

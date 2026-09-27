@@ -1,5 +1,5 @@
 {
-  "name": "ip",
+  "name": "ip-lookup-tools",
   "private": true,
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.32.1",
@@ -19,7 +19,8 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "prepare": "husky",
-    "browser:build": "node scripts/build-browser-diagnostics.mjs"
+    "browser:build": "node scripts/build-browser-diagnostics.mjs",
+    "seo:generate": "node scripts/generate-seo-files.mjs"
   },
   "dependencies": {
     "@cloudflare/speedtest": "1.13.0",
@@ -74,7 +75,7 @@
     "vite": "^8.2.2",
     "wrangler": "^4.130.0"
   },
-  "description": "IP diagnostics SPA with Cloudflare Workers",
+  "description": "IP Lookup Tools (IP 查询工具) — IP diagnostics SPA on Cloudflare Workers, based on zhihui-hu/one-ip",
   "keywords": [
     "react",
     "vite",
@@ -87,5 +88,9 @@
     "**/*.{js,jsx,ts,tsx,json,css,md}": [
       "prettier --write"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Venice851007/one-ip"
   }
 }

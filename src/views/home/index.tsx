@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { ConnectivityTile, homeTargets } from "@/components/connectivity";
 import { CountryFlag } from "@/components/country-flag";
 import { NumberTicker } from "@/components/number-ticker";
@@ -34,6 +35,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  MapPin,
 } from "lucide-react";
 import { getGeo, getBrowserIp, getDomesticIp } from "./api";
 import { IpSearch } from "./components/ip-search";
@@ -119,9 +121,6 @@ export function HomePage() {
   const connectivityRef = useSortAnimation(
     `${mobile}-${orderedTargets.map(({ target }) => target.name).join("|")}`,
   );
-  useEffect(() => {
-    document.title = t("概览 - IP 网络工具");
-  }, []);
   const probes = useQueries({
     queries: [
       {
@@ -377,19 +376,20 @@ export function HomePage() {
       <SplitResults summary />
       <PlatformSummary />
       <BrowserSummary />
+      <AdSlot name="home" />
       <Card className="home-shortcuts">
         <CardHeader>
           <CardTitle>{t("热门功能")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Link to="/ai/claude" className="shortcut-feature">
+          <Link to="/network/ip" className="shortcut-feature">
             <span className="shortcut-icon">
-              <SiteLogo website="https://claude.ai" />
+              <MapPin aria-hidden="true" />
             </span>
             <span className="shortcut-label">
-              <strong>{t("Claude 中国用户检测")}</strong>
+              <strong>{t("IP 地址查询")}</strong>
               <span className="shortcut-description">
-                {t("检查语言、时区与设备信号，了解浏览器暴露的环境特征。")}
+                {t("查询 IP 归属地、运营商、ASN、信誉分与风险标记。")}
               </span>
             </span>
             <ArrowRight className="shortcut-arrow" aria-hidden="true" />

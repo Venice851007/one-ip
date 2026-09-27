@@ -38,9 +38,6 @@ export function PageHeading({
   description: string;
   privacy?: boolean;
 }) {
-  useEffect(() => {
-    document.title = `${title}`;
-  }, [title]);
   return (
     <>
       <h1 className="sr-only">{title}</h1>

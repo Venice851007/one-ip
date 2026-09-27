@@ -1,5 +1,6 @@
 import { t } from "@/i18n";
 import { aiPlatforms } from "@/views/ai/platforms";
+import legacy from "./legacy-routes.json" with { type: "json" };
 
 export const navigationRoutes = [
   { value: "/", label: t("概览"), short: t("概览") },
@@ -31,31 +32,7 @@ export const toolGroups = {
     label: platform.name,
   })),
 } as const;
-export const legacyRoutes: Record<string, string> = {
-  "/query": "/network/ip",
-  "/query/ip": "/network/ip",
-  "/query/ip/:ip": "/network/ip",
-  "/query/whois": "/network/whois",
-  "/ip": "/network/ip",
-  "/ip/:ip": "/network/ip",
-  "/whois": "/network/whois",
-  "/link": "/network/connectivity",
-  "/network/link": "/network/connectivity",
-  "/network/exits": "/network/connectivity",
-  "/ping": "/network/ping",
-  "/cdn": "/network/cdn",
-  "/dns-exit": "/network/dns",
-  "/network/dns-exit": "/network/dns",
-  "/webrtc": "/browser/privacy",
-  "/network/webrtc": "/browser/privacy",
-  "/browser/webrtc": "/browser/privacy",
-  "/gpt": "/ai/gpt",
-  "/claude": "/ai/claude",
-  "/gpt/status.html": "/status/openai",
-  "/claude/status.html": "/status/claude",
-  "/ai/gpt/status": "/status/openai",
-  "/ai/claude/status": "/status/claude",
-};
+export const legacyRoutes: Record<string, string> = legacy;
 export function activeNavigationRoute(pathname: string) {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return "/";

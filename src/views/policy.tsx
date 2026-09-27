@@ -1,5 +1,6 @@
 import { PageHeading, ToolCard } from "@/components/toolkit";
 import { t } from "@/i18n";
+import site from "@/seo/site.json";
 
 export default function PolicyPage({ page }: { page: "terms" | "privacy" }) {
   const sections = {
@@ -91,9 +92,15 @@ export default function PolicyPage({ page }: { page: "terms" | "privacy" }) {
         ),
       ],
       [
+        t("广告与统计"),
+        t(
+          "本站可能使用 Cloudflare Web Analytics 统计访问量，该服务不使用 Cookie。启用广告时，本站通过 Google AdSense 展示广告；你同意 Cookie 提示后才会加载，Google 可能按其政策使用 Cookie 进行个性化和效果衡量。拒绝后不加载广告脚本，清除本站数据可重新选择。",
+        ),
+      ],
+      [
         t("保存与清除"),
         t(
-          "查询历史在当前浏览器按类别保留最近 10 条成功查询及结果，清除本站数据即可删除。服务端使用请求 IP 做限流；托管配置启用了采样日志，实际记录与保留时间取决于部署设置。清除浏览器数据不会删除第三方或托管服务的记录。如需咨询相关数据，请联系作者并说明请求时间和功能。",
+          "查询历史在当前浏览器按类别保留最近 10 条成功查询及结果，清除本站数据即可删除。服务端使用请求 IP 做限流；托管配置启用了采样日志，实际记录与保留时间取决于部署设置。清除浏览器数据不会删除第三方或托管服务的记录。如需咨询相关数据，请通过 GitHub Issues 联系并说明请求时间和功能。",
         ),
       ],
     ],
@@ -109,15 +116,17 @@ export default function PolicyPage({ page }: { page: "terms" | "privacy" }) {
           <p className="text-sm leading-6 text-muted-foreground">{body}</p>
         </ToolCard>
       ))}
-      <ToolCard title={t("联系作者")}>
+      <ToolCard title={t("问题反馈")}>
         <p className="mb-2 text-sm text-muted-foreground">
-          {t("如对本站使用或隐私有疑问，请通过邮箱联系作者。")}
+          {t("如对本站使用或隐私有疑问，请在 GitHub Issues 中反馈。")}
         </p>
         <a
           className="text-sm text-primary hover:underline"
-          href="mailto:ip@huzhihui.com"
+          href={site.issues}
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          ip@huzhihui.com
+          {site.issues.replace("https://", "")}
         </a>
       </ToolCard>
     </div>

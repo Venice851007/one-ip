@@ -1,9 +1,12 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AdSlot } from "@/components/ads/ad-slot";
+import { CookieConsent } from "@/components/ads/cookie-consent";
 import { BuildInfo } from "@/components/build-info";
 import { HomePageSkeleton } from "@/components/home-page-skeleton";
 import { LanguageSelect } from "@/components/language-select";
 import { AppUpdateChecker } from "@/components/providers/app-update-checker";
+import { SeoSync } from "@/components/seo-sync";
 import { ShareSite } from "@/components/share-site";
 import { ThemeToggleButton } from "@/components/theme/theme-toggle-button";
 import { Pending } from "@/components/toolkit";
@@ -13,6 +16,7 @@ import { UnderlineHover } from "@/components/underline-hover";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/hooks/use-theme";
 import { t } from "@/i18n";
+import site from "@/seo/site.json";
 import { Search, Globe, Cable, Activity, Sparkles } from "lucide-react";
 import { Tabs } from "radix-ui";
 import { Toaster } from "sonner";
@@ -79,12 +83,13 @@ export function AppLayout() {
 
   return (
     <>
+      <SeoSync />
       <div className="app-container">
         <header className="mobile-site-header">
           <Link
             to="/"
             className="flex items-center gap-2 text-sm font-semibold"
-            aria-label={t("IP 网络工具概览")}
+            aria-label={t("IP 查询工具概览")}
           >
             <img src="/icon.svg" width="24" height="24" alt="" />
           </Link>
@@ -115,7 +120,7 @@ export function AppLayout() {
               )}
               <Link
                 to="/"
-                aria-label={t("IP 网络工具概览")}
+                aria-label={t("IP 查询工具概览")}
                 className="site-home-link flex size-9 shrink-0 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <img src="/icon.svg" alt="" width="32" height="32" />
@@ -152,49 +157,73 @@ export function AppLayout() {
             </main>
           </Tabs.Content>
         </AnimatedSegmentedTabs>
+        <AdSlot name="footer" />
         <footer className="app-footer">
-          © {new Date().getFullYear()} IP ·{" "}
-          <UnderlineHover asChild>
-            <a
-              href="https://huzhihui.com/blog/one-ip-guide"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t("使用文档")}
-            </a>
-          </UnderlineHover>{" "}
-          ·{" "}
-          <UnderlineHover asChild>
-            <Link to="/docs/api">API</Link>
-          </UnderlineHover>{" "}
-          ·{" "}
-          <UnderlineHover asChild>
-            <Link to="/terms">{t("使用条款")}</Link>
-          </UnderlineHover>{" "}
-          ·{" "}
-          <UnderlineHover asChild>
-            <Link to="/privacy">{t("隐私政策")}</Link>
-          </UnderlineHover>{" "}
-          ·{" "}
-          <UnderlineHover asChild>
-            <a
-              href="https://github.com/zhihui-hu/one-ip"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 align-middle"
-            >
-              GitHub
-            </a>
-          </UnderlineHover>{" "}
-          ·{" "}
-          <UnderlineHover asChild>
-            <a href="mailto:ip@huzhihui.com">{t("联系作者")}</a>
-          </UnderlineHover>
+          <div>
+            © {new Date().getFullYear()} {t("IP 查询工具")} ·{" "}
+            <UnderlineHover asChild>
+              <a href={site.blog} target="_blank" rel="noopener">
+                {t("使用文档")}
+              </a>
+            </UnderlineHover>{" "}
+            ·{" "}
+            <UnderlineHover asChild>
+              <Link to="/docs/api">API</Link>
+            </UnderlineHover>{" "}
+            ·{" "}
+            <UnderlineHover asChild>
+              <Link to="/terms">{t("使用条款")}</Link>
+            </UnderlineHover>{" "}
+            ·{" "}
+            <UnderlineHover asChild>
+              <Link to="/privacy">{t("隐私政策")}</Link>
+            </UnderlineHover>{" "}
+            ·{" "}
+            <UnderlineHover asChild>
+              <a href={site.issues} target="_blank" rel="noopener noreferrer">
+                {t("问题反馈")}
+              </a>
+            </UnderlineHover>{" "}
+            · {t("友链：")}
+            <UnderlineHover asChild>
+              <a href={site.blog} target="_blank" rel="noopener">
+                {t("小磊哥の博客")}
+              </a>
+            </UnderlineHover>
+          </div>
+          <div className="app-footer-source">
+            <UnderlineHover asChild>
+              <a
+                href={site.repository}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("源代码")}
+              </a>
+            </UnderlineHover>{" "}
+            ·{" "}
+            <UnderlineHover asChild>
+              <a href={site.upstream} target="_blank" rel="noopener noreferrer">
+                {t("基于 zhihui-hu/one-ip 修改")}
+              </a>
+            </UnderlineHover>{" "}
+            ·{" "}
+            <UnderlineHover asChild>
+              <a
+                href={site.licenseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("AGPL-3.0 许可")}
+              </a>
+            </UnderlineHover>
+          </div>
         </footer>
       </div>
       <aside aria-label={t("站点通知")} className="update-notices">
         <AppUpdateChecker />
       </aside>
+      <CookieConsent />
       <BuildInfo />
       <Toaster richColors theme={resolvedTheme} position="top-right" />
     </>

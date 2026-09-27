@@ -236,9 +236,6 @@ function ConnectivityGroup({
 }
 
 export default function LinkPage() {
-  useEffect(() => {
-    document.title = t("网站连通与出口 - IP 网络工具");
-  }, []);
   return (
     <>
       <h1 className="sr-only">{t("网站连通与分流出口")}</h1>

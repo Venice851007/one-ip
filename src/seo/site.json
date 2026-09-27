@@ -1,0 +1,11 @@
+{
+  "name": "IP 查询工具",
+  "origin": "https://ip.minispacex.com",
+  "repository": "https://github.com/Venice851007/one-ip",
+  "issues": "https://github.com/Venice851007/one-ip/issues",
+  "upstream": "https://github.com/zhihui-hu/one-ip",
+  "blog": "https://www.5201616.xyz",
+  "blogName": "小磊哥の博客",
+  "license": "AGPL-3.0",
+  "licenseUrl": "https://github.com/Venice851007/one-ip/blob/main/LICENSE"
+}

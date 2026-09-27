@@ -1,13 +1,27 @@
-name = "one-ip"
+name = "ip-tools"
 main = "public/worker/index.js"
 compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
+
+# Custom domain: Cloudflare creates the DNS record and certificate on deploy.
+routes = [{ pattern = "ip.minispacex.com", custom_domain = true }]
+
+# Public, non-secret runtime settings (see README "广告与统计"). Empty = disabled.
+[vars]
+ADSENSE_CLIENT = ""
+ADSENSE_SLOT_HOME = ""
+ADSENSE_SLOT_IP = ""
+ADSENSE_SLOT_TOOL = ""
+ADSENSE_SLOT_FOOTER = ""
+CF_WEB_ANALYTICS_TOKEN = ""
 
 [assets]
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api/*", "/worker", "/worker/*"]
+# Pages run through the Worker for per-route <head> injection; hashed build
+# assets are served directly. The Worker passes other files through unchanged.
+run_worker_first = ["/*", "!/assets/*"]
 
 [observability]
 enabled = true
@@ -22,12 +36,12 @@ enabled = false
 
 [[ratelimits]]
 name = "API_LIMITER"
-namespace_id = "1001"
+namespace_id = "8517001"
 simple = { limit = 180, period = 60 }
 
 [[ratelimits]]
 name = "ACTION_LIMITER"
-namespace_id = "1002"
+namespace_id = "8517002"
 simple = { limit = 5, period = 60 }
 
 # Local development forwards all page and asset requests to Vite.
@@ -39,10 +53,10 @@ run_worker_first = true
 
 [[env.local.ratelimits]]
 name = "API_LIMITER"
-namespace_id = "1001"
+namespace_id = "8517001"
 simple = { limit = 180, period = 60 }
 
 [[env.local.ratelimits]]
 name = "ACTION_LIMITER"
-namespace_id = "1002"
+namespace_id = "8517002"
 simple = { limit = 5, period = 60 }

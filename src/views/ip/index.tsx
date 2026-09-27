@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, useId } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { LookupForm } from "@/components/lookup-form";
 import { IpText, ErrorNotice, Pending } from "@/components/toolkit";
 import { Button } from "@/components/ui/button";
@@ -149,6 +150,7 @@ export default function IpPage() {
           {recent}
         </div>
       )}
+      {query.data && <AdSlot name="ip" />}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { ipHealth } from "./ip-health.js";
 import { ipNetwork } from "./ip-network.js";
 import { ipType } from "./ip-type.js";
 import { mapConfig } from "./map.js";
+import { adsTxt, isPagePath, renderPage } from "./pages.js";
 import { startPing, pingResult, pingNodes } from "./ping.js";
 import { normalizeStatus } from "./service-status.js";
 import services from "./services.json";
@@ -22,13 +23,25 @@ export default {
     if (url.pathname === "/worker" || url.pathname.startsWith("/worker/"))
       return new Response("Not found", { status: 404 });
     if (!url.pathname.startsWith("/api/")) {
-      if (env.LOCAL_DEV === "true") {
-        url.hostname = "127.0.0.1";
-        url.port = "5137";
-        url.protocol = "http:";
-        return fetch(new Request(url, request));
+      if (url.pathname === "/ads.txt") return adsTxt(env);
+      const page = isPagePath(url, request);
+      let assetRequest = request;
+      if (page) {
+        // Always fetch the full SPA shell so per-route metadata can be injected.
+        const headers = new Headers(request.headers);
+        headers.delete("If-None-Match");
+        headers.delete("If-Modified-Since");
+        assetRequest = new Request(request, { headers });
       }
-      return env.ASSETS.fetch(request);
+      let response;
+      if (env.LOCAL_DEV === "true") {
+        const local = new URL(url);
+        local.hostname = "127.0.0.1";
+        local.port = "5137";
+        local.protocol = "http:";
+        response = await fetch(new Request(local, assetRequest));
+      } else response = await env.ASSETS.fetch(assetRequest);
+      return page ? await renderPage(response, url, env) : response;
     }
     try {
       const origin = request.headers.get("Origin");

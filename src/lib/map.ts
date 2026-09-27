@@ -137,7 +137,7 @@ export function mapExternalUrl(
     const params = new URLSearchParams({
       position: `${longitude},${latitude}`,
       coordinate: "wgs84",
-      src: "one-ip",
+      src: "ip-lookup-tools",
     });
     if (label) params.set("name", label);
     return `https://uri.amap.com/marker?${params}`;
