@@ -101,7 +101,7 @@ async function torList(request, env) {
           }
         }
         const response = await fetch(TOR_SOURCE, {
-          redirect: "error",
+          redirect: "manual",
           signal: AbortSignal.timeout(8000),
         });
         const list = parseTorExitList(

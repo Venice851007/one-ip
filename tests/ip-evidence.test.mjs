@@ -60,8 +60,9 @@ test("free endpoint shares Tor downloads, keeps unsupported fields absent and ma
   const { ipEvidence } = await freshModule();
   let calls = 0;
   await withFetch(
-    async (url) => {
+    async (url, init) => {
       calls++;
+      assert.equal(init.redirect, "manual");
       assert.equal(url, "https://check.torproject.org/exit-addresses");
       return new Response(list());
     },

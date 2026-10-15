@@ -110,7 +110,7 @@ async function dropList(request, env) {
         else {
           text = await textFile(
             await fetch(ASN_DROP_MIRROR, {
-              redirect: "error",
+              redirect: "manual",
               signal: AbortSignal.timeout(8000),
             }),
           );
@@ -238,7 +238,7 @@ async function loadRanking(asn, day) {
     const post = async (path, body) => {
       const response = await fetch(`${CIRCL_SOURCE}${path}`, {
         method: "POST",
-        redirect: "error",
+        redirect: "manual",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(8000),

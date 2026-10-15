@@ -145,6 +145,7 @@ test("CIRCL queries a completed day and shares both API calls for the same ASN",
   await withFetch(
     async (url, init) => {
       calls++;
+      assert.equal(init.redirect, "manual");
       assert.equal(JSON.parse(init.body).date, day);
       assert.equal(JSON.parse(init.body).asn, "13335");
       return Response.json(
@@ -206,6 +207,24 @@ test("an expired bundle can refresh from the repository mirror without polling S
       assert.equal(result.fields.asn_drop, true);
       await asnDropEvidence(13335, req, env);
       assert.equal(calls, 1);
+    },
+  );
+});
+
+test("CIRCL rejects redirects without following an unexpected destination", async () => {
+  const { circlEvidence } = await fresh();
+  await withFetch(
+    async (_url, init) => {
+      assert.equal(init.redirect, "manual");
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "https://unexpected.example/" },
+      });
+    },
+    async () => {
+      const result = await circlEvidence(13335);
+      assert.equal(result.state, "unavailable");
+      assert.equal(result.fields.asn_rank, undefined);
     },
   );
 });
