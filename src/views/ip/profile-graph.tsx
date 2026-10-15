@@ -56,7 +56,7 @@ export function IpReputationScale({
   useEffect(() => {
     const element = graph.current;
     if (!element) return;
-    const dark = resolvedTheme === "dark" || profile.score === 100;
+    const dark = resolvedTheme === "dark";
     const accent = dark ? "#f3ecdf" : "#20252c";
     const spectrum = ["#cd3832", "#ed8557", "#edc647", "#64c582", "#249139"];
     const muted = dark ? "#b6ad9c" : "#64748b";

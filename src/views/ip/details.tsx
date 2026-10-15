@@ -11,13 +11,13 @@ import { ipScoreColor } from "@/lib/ip-score";
 import type { Geo } from "@/lib/types";
 import { hideIpAtom } from "@/store/privacy";
 import { useAtom } from "jotai";
-import { Crown, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { coffeeThreatLabels, type CoffeeLookup } from "./coffee";
 import { IpFacts } from "./field-help";
 import { IpLatency } from "./latency";
 import { LocationMap } from "./location-map";
-import { PerfectScoreEffects } from "./perfect-score-effects";
 import { ipProfile } from "./profile";
+import { SourceEvidencePanel } from "./source-panel";
 import { useIpLatency } from "./use-ip-latency";
 
 const IpProfileGraph = lazy(() => import("./profile-graph"));
@@ -82,10 +82,7 @@ export function IpDetails({
   };
   return (
     <div className="ip-dossier">
-      <div
-        className={`ip-dossier-top${score === 100 ? " ip-dossier-perfect" : ""}`}
-      >
-        {score === 100 && <PerfectScoreEffects />}
+      <div className="ip-dossier-top">
         <div className="ip-dossier-head">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -122,13 +119,14 @@ export function IpDetails({
             </div>
           </div>
           <div
-            className={`ip-reputation-badge${score === 100 ? " ip-reputation-perfect" : ""}`}
-            style={{ color: ipScoreColor(score) }}
+            className="ip-reputation-badge"
+            style={{
+              color: profile.risk
+                ? "var(--muted-foreground)"
+                : ipScoreColor(score),
+            }}
           >
-            <span className={score === 100 ? "ip-perfect-label" : undefined}>
-              {score === 100 && <Crown size={13} aria-hidden="true" />}
-              {score === 100 ? t("满分信誉") : t("IP 信誉分")}
-            </span>
+            <span>{t("Net.Coffee 参考信誉")}</span>
             <strong>
               {score == null ? "—" : <NumberTicker value={score} />}
             </strong>
@@ -160,6 +158,7 @@ export function IpDetails({
           </div>
         </div>
       )}
+      <SourceEvidencePanel data={data} />
       <Suspense
         fallback={
           <ToolCard title={t("IP 画像")}>

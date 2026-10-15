@@ -114,3 +114,24 @@ test("health reports mismatched, malformed and failed upstream responses", async
   assert.equal(result.status, 429);
   assert.ok(!(await result.text()).includes("private upstream body"));
 });
+
+test("v2 separates reference score bands from abuse evidence while legacy stays compatible", async (t) => {
+  t.mock.method(globalThis, "fetch", async () =>
+    Response.json({ ip: "1.1.1.1", trust_score: 100, is_abuser: true }),
+  );
+  const legacy = await (await worker.fetch(request("?ip=1.1.1.1"), {})).json();
+  assert.equal(legacy.status, "good");
+  const data = await (
+    await worker.fetch(request("?ip=1.1.1.1&version=2"), {})
+  ).json();
+  assert.equal(data.schema_version, 2);
+  assert.equal(data.reputation.source, "Net.Coffee");
+  assert.equal(data.reputation.value, 100);
+  assert.equal(data.reputation.updated_at, null);
+  assert.ok(data.assessment.states.includes("abuse_record"));
+  assert.equal(data.status, undefined);
+  assert.equal(
+    (await worker.fetch(request("?ip=1.1.1.1&version=3"), {})).status,
+    400,
+  );
+});

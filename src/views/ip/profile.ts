@@ -1,14 +1,9 @@
 import { t } from "@/i18n";
+import { referenceScore } from "@/lib/ip-assessment";
 import { coffeeThreatLabels, type CoffeeIp } from "./coffee.ts";
 
 export function ipProfile(data: CoffeeIp) {
-  const score =
-    typeof data.trust_score === "number" &&
-    Number.isFinite(data.trust_score) &&
-    data.trust_score >= 0 &&
-    data.trust_score <= 100
-      ? data.trust_score
-      : null;
+  const score = referenceScore(data.trust_score);
   const companyTypes: Record<string, string> = {
     isp: t("网络运营商"),
     hosting: t("托管服务商"),
@@ -55,16 +50,8 @@ export function ipProfile(data: CoffeeIp) {
   ).length;
   const threats = coffeeThreatLabels(data, true);
   const clear = !detected.length && !unknownFlags && !threats.length;
-  const preferred =
-    score !== null &&
-    score >= 90 &&
-    data.isResidential === true &&
-    data.is_datacenter === false &&
-    !data.is_mobile &&
-    !data.is_public_service &&
-    companyType === "isp" &&
-    sameCountry === true &&
-    clear;
+  // Network type and registration are facts, never a universal quality ranking.
+  const preferred = false;
   const seriousFlags = [
     ...(data.is_abuser ? [t("滥用标记")] : []),
     ...(data.is_bogon ? ["Bogon"] : []),
@@ -99,22 +86,7 @@ export function ipProfile(data: CoffeeIp) {
             ),
           }
         : null;
-  // Levels describe the available network profile, not hardware or line speed.
-  const level: "S" | "A" | "B" | "C" | null =
-    data.is_public_service ||
-    conflict ||
-    !clear ||
-    score === null ||
-    type === t("未知") ||
-    !companyType
-      ? null
-      : preferred
-        ? "S"
-        : score >= 90
-          ? "A"
-          : score >= 75
-            ? "B"
-            : "C";
+  const level = null;
   let grade = t("信息不足");
   let explanation = t("部分类型或风险数据缺失，暂不判断配置档位。");
   let tone: "good" | "warn" | "bad" | "neutral" = "neutral";
@@ -135,12 +107,6 @@ export function ipProfile(data: CoffeeIp) {
       [...detected, ...threats].join("、"),
     ]);
     tone = data.is_abuser || data.is_bogon || threats.length ? "bad" : "warn";
-  } else if (preferred) {
-    grade = t("住宅优选");
-    explanation = t(
-      "住宅 IP、ISP 厂商、注册地一致、信誉分 ≥ 90，且六项网络标记均未检出。",
-    );
-    tone = "good";
   } else if (score !== null && type !== t("未知") && clear) {
     grade =
       score >= 90

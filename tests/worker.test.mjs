@@ -16,6 +16,36 @@ const env = {
   API_LIMITER: { limit: async () => ({ success: true }) },
   ACTION_LIMITER: { limit: async () => ({ success: true }) },
 };
+test("free evidence route rejects private IPs before upstream work and returns scoped source states", async () => {
+  let calls = 0;
+  await withFetch(
+    async () => {
+      calls++;
+      const date = new Date().toISOString().replace("T", " ").slice(0, 19);
+      return new Response(
+        `ExitNode EXAMPLE\nPublished ${date}\nExitAddress 1.1.1.1 ${date}\n`,
+      );
+    },
+    async () => {
+      assert.equal(
+        (await worker.fetch(request("/api/ip/evidence/127.0.0.1"), env)).status,
+        400,
+      );
+      assert.equal(calls, 0);
+      const response = await worker.fetch(
+        request("/api/ip/evidence/1.1.1.1"),
+        env,
+      );
+      assert.equal(response.status, 200);
+      const data = await response.json();
+      assert.equal(data.schema_version, 2);
+      assert.equal(data.ip, "1.1.1.1");
+      assert.equal(data.sources[0].fields.tor_exit, true);
+      assert.equal(data.sources[1].state, "not_configured");
+      assert.equal(response.headers.get("Cache-Control"), "no-store");
+    },
+  );
+});
 function request(path, init = {}) {
   return new Request(`https://tools.example.com${path}`, init);
 }

@@ -23,13 +23,11 @@ import { companyTypeColors } from "@/lib/ip-badge-colors";
 import { ipScoreColor } from "@/lib/ip-score";
 import { BrowserSummary } from "@/views/browser/summary";
 import { lookupIp } from "@/views/ip/api";
-import { PerfectScoreEffects } from "@/views/ip/perfect-score-effects";
 import { testConnectivity, type ProbeResult } from "@/views/link/api";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   ArrowRight,
-  Crown,
   Fingerprint,
   Network,
   Search,
@@ -253,11 +251,7 @@ export function HomePage() {
           const loading =
             pending || Boolean(data && geoByIp.get(data.ip)?.isPending);
           return (
-            <Card
-              key={index}
-              className={`home-primary-card relative${score === 100 ? " ip-dossier-perfect" : ""}`}
-            >
-              {score === 100 && <PerfectScoreEffects />}
+            <Card key={index} className="home-primary-card relative">
               {data && (
                 <Link
                   to={`/network/ip/${encodeURIComponent(data.ip)}`}
@@ -298,19 +292,10 @@ export function HomePage() {
                   </div>
                   {hasScore && (
                     <div
-                      className={`ip-reputation-badge shrink-0${score === 100 ? " ip-reputation-perfect" : ""}`}
+                      className="ip-reputation-badge shrink-0"
                       style={{ color: ipScoreColor(score) }}
                     >
-                      <span
-                        className={
-                          score === 100 ? "ip-perfect-label" : undefined
-                        }
-                      >
-                        {score === 100 && (
-                          <Crown size={13} aria-hidden="true" />
-                        )}
-                        {score === 100 ? t("满分信誉") : t("IP 信誉分")}
-                      </span>
+                      <span>{t("Net.Coffee 参考信誉")}</span>
                       <strong>
                         <NumberTicker value={score} />
                       </strong>

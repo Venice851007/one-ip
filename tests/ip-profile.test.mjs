@@ -63,9 +63,9 @@ test("profile explanations highlight actual categories and keep unknown flags di
   assert.equal(flags.find((item) => item.label === "Tor").status, "未检测到");
 });
 
-test("preferred residential requires evidence beyond a high score", () => {
-  assert.equal(ipProfile(residential).grade, "住宅优选");
-  assert.equal(ipProfile(residential).level, "S");
+test("residential and registration facts never produce a preferred tier", () => {
+  assert.equal(ipProfile(residential).grade, "高信誉住宅");
+  assert.equal(ipProfile(residential).level, null);
   assert.equal(
     ipProfile(residential).checks.filter((check) => check.passed === true)
       .length,
@@ -99,7 +99,7 @@ test("evidence separates missing fields, type mismatches and real score bands", 
     company_type: "hosting",
     trust_score: 100,
   });
-  assert.equal(hosting.level, "A");
+  assert.equal(hosting.level, null);
   assert.equal(hosting.checks[0].passed, false);
   assert.equal(hosting.checks[1].passed, false);
   assert.equal(hosting.checks.filter((check) => check.passed).length, 3);
@@ -217,12 +217,12 @@ test("tier boundaries and missing evidence do not imply top configuration", () =
     company_type: "hosting",
   };
   for (const [score, level] of [
-    [0, "C"],
-    [74, "C"],
-    [75, "B"],
-    [89, "B"],
-    [90, "A"],
-    [100, "A"],
+    [0, null],
+    [74, null],
+    [75, null],
+    [89, null],
+    [90, null],
+    [100, null],
   ]) {
     assert.equal(ipProfile({ ...hosting, trust_score: score }).level, level);
   }

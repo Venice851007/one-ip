@@ -1,10 +1,20 @@
 import { HttpError, json, publicIp, upstream } from "./http.js";
+import {
+  assessIpRecord,
+  referenceBand,
+  referenceScore,
+} from "../../src/lib/ip-assessment.ts";
 
 export async function ipHealth(request, env) {
   const url = new URL(request.url);
   const format = url.searchParams.get("format") ?? "json";
+  const version = url.searchParams.get("version") ?? "1";
+  if (!["1", "2"].includes(version))
+    throw new HttpError(400, "version 仅支持 1 或 2");
   if (!["json", "text"].includes(format))
     throw new HttpError(400, "format 仅支持 json 或 text");
+  if (version === "2" && format !== "json")
+    throw new HttpError(400, "version=2 仅支持 json");
   const target = url.searchParams.get("ip");
   if (
     target === null &&
@@ -26,27 +36,14 @@ export async function ipHealth(request, env) {
     throw new HttpError(502, "IP 数据源返回的地址无效");
   }
   if (returnedIp !== ip) throw new HttpError(502, "IP 数据源返回的地址不匹配");
-  const score =
-    typeof data.trust_score === "number" &&
-    Number.isFinite(data.trust_score) &&
-    data.trust_score >= 0 &&
-    data.trust_score <= 100
-      ? data.trust_score
-      : null;
+  const score = referenceScore(data.trust_score);
   const flag = (value) => (typeof value === "boolean" ? value : null);
   const string = (value) => (typeof value === "string" ? value : null);
   const result = {
     ip,
     checked_at: new Date().toISOString(),
     score,
-    status:
-      score === null
-        ? "unknown"
-        : score >= 75
-          ? "good"
-          : score >= 45
-            ? "moderate"
-            : "poor",
+    status: referenceBand(score),
     country: string(data.country),
     region: string(data.region),
     city: string(data.city),
@@ -63,6 +60,24 @@ export async function ipHealth(request, env) {
       abuser: flag(data.is_abuser),
     },
   };
+  if (version === "2") {
+    if (format !== "json") throw new HttpError(400, "version=2 仅支持 json");
+    return json({
+      schema_version: 2,
+      ip,
+      checked_at: result.checked_at,
+      reputation: {
+        source: "Net.Coffee",
+        value: score,
+        scale: [0, 100],
+        direction: "higher-is-better",
+        band: referenceBand(score),
+        updated_at: null,
+      },
+      assessment: assessIpRecord(data),
+      flags: result.flags,
+    });
+  }
   if (format === "json") return json(result);
   // Strip control characters from provider text before displaying it in a terminal.
   const display = (value) =>

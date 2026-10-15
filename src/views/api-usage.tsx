@@ -5,7 +5,6 @@ import { ApiCodeBlock } from "./api-code-block";
 const example = JSON.stringify(
   {
     ip: "203.0.113.10",
-    source: "Net.Coffee",
     checked_at: "2026-09-11T08:00:00.000Z",
     score: 85,
     status: "good",
@@ -54,6 +53,15 @@ export default function ApiUsagePage() {
         </a>
       </p>
       <ApiCodeBlock code={command} language="bash" />
+      <p className="text-sm leading-6 text-muted-foreground">
+        {t(
+          "兼容版 status 仅表示 Net.Coffee 分数分档，不是安全结论。添加 version=2 可分别取得来源信誉与风险记录。",
+        )}
+      </p>
+      <ApiCodeBlock
+        code={`curl -fsS '${endpoint}?version=2'`}
+        language="bash"
+      />
       <a
         className="inline-block text-sm text-primary hover:underline"
         href={site.blog}
