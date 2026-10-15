@@ -90,7 +90,7 @@ export function IpAssessmentPanel({
           </dl>
           <p className="mt-2">
             {t(
-              "网络类型只作说明；尚无 ASN 信誉数据，不给该维度加分或扣分。单源上限是本站产品规则，不是统计置信度。",
+              "网络类型只作说明；ASN-DROP 命中可限制评分，未命中不加分。单一信誉来源最高 79 分；规则上限不是统计置信度。",
             )}
           </p>
           <p className="mt-1">
@@ -207,10 +207,74 @@ export function IpAssessmentPanel({
           </section>
           <section className="rounded-xl border p-3">
             <h3 className="mb-2 text-sm font-medium">{t("ASN 环境")}</h3>
-            <p className="text-sm">{t("网络信誉未评估")}</p>
+            <p className="text-sm">
+              {assessment.asn.reputation === "risk_listed"
+                ? t("ASN 命中严重风险名单")
+                : assessment.asn.reputation === "not_listed"
+                  ? t("ASN-DROP 未列入")
+                  : assessment.asn.reputation === "mapping_conflict"
+                    ? t("ASN 归属有分歧，暂停网络信誉判断")
+                    : t("ASN 风险证据不足")}
+            </p>
             <p className="mt-2 text-xs text-muted-foreground">
               {t(
-                "ASN 归属可按来源核验；尚无 ASN 滥用占比数据，不因同网段其他地址的行为连带评判该 IP。",
+                "ASN 是网络背景；命中名单不等于该 IP 已有滥用记录。未列入不能证明信誉良好，也不加分。",
+              )}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              <a
+                className="underline"
+                href={assessment.asn.drop.source}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Spamhaus ASN-DROP
+              </a>
+              {" · "}
+              {assessment.asn.drop.state === "available"
+                ? t("已取得数据")
+                : assessment.asn.drop.state === "stale"
+                  ? t("数据已过期")
+                  : t("来源不可用")}
+              <br />
+              {t("数据版本：{0}；查询时间：{1}", [
+                time(assessment.asn.drop.dataset_updated_at),
+                time(assessment.asn.drop.queried_at),
+              ])}
+              {assessment.asn.drop.copyright && (
+                <>
+                  <br />
+                  {assessment.asn.drop.copyright}
+                </>
+              )}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              <a
+                className="underline"
+                href={assessment.asn.ranking.source}
+                target="_blank"
+                rel="noreferrer"
+              >
+                CIRCL BGP Ranking
+              </a>
+              {" · "}
+              {assessment.asn.ranking.state === "available"
+                ? t("已取得数据")
+                : t("暂无可核验的近期排名")}
+            </p>
+            {assessment.asn.ranking.state === "available" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("日期：{0}；风险排序：{1}/{2}；原始指标：{3}", [
+                  assessment.asn.ranking.date!,
+                  assessment.asn.ranking.position!,
+                  assessment.asn.ranking.total!,
+                  assessment.asn.ranking.rank!,
+                ])}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "CIRCL 风险排序越靠前越需留意，范围仅限当日参与排名的网络；目前只作背景展示，不换算为 IP 分数。",
               )}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">

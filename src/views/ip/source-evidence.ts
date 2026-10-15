@@ -15,10 +15,14 @@ export type SourceObservation = {
   license?: string;
   state: SourceState;
   capabilities: string[];
-  fields: Record<string, string | boolean | null>;
+  fields: Record<string, string | number | boolean | null>;
   queried_at?: string;
   dataset_updated_at?: string;
   observed_at?: string | null;
+  copyright?: string;
+  terms?: string;
+  ranking_date?: string;
+  history?: { date: string; rank: number }[];
 };
 export type FreeEvidence = {
   schema_version: 2;
@@ -67,11 +71,21 @@ export function sourceObservations(
     sameIp(extra.ip, coffee.ip) &&
     Array.isArray(extra.sources)
       ? extra.sources.filter((source) =>
-          ["ipinfo-lite", "tor-project"].includes(source.id),
+          [
+            "ipinfo-lite",
+            "tor-project",
+            "spamhaus-asndrop",
+            "circl-bgp",
+          ].includes(source.id),
         )
       : [];
   return [
     existing,
+    ...extras.filter(
+      (source, index, all) =>
+        ["spamhaus-asndrop", "circl-bgp"].includes(source.id) &&
+        all.findIndex((item) => item.id === source.id) === index,
+    ),
     ...["ipinfo-lite", "tor-project"].map(
       (id) =>
         extras.find((source) => source.id === id) ?? {

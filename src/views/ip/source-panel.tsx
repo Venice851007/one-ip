@@ -60,6 +60,9 @@ const date = (value?: string) =>
 
 export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
   const { query, sources, assessment, scoring } = useIpAssessment(data);
+  const fieldSources = sources.filter((source) =>
+    evidenceFields.some((field) => source.capabilities.includes(field)),
+  );
   return (
     <>
       <IpAssessmentPanel
@@ -93,7 +96,7 @@ export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
           {t(
-            "免费库分别核验国家、ASN 和 Tor 出口，不提供第二家综合信誉评分。未检出不等于不存在风险。",
+            "免费来源核验国家、ASN、Tor 出口及 ASN 风险背景，不提供第二家综合 IP 信誉评分。未检出不等于不存在风险。",
           )}
         </p>
         {query.error && (
@@ -106,7 +109,7 @@ export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("核验字段")}</TableHead>
-                {sources.map((source) => (
+                {fieldSources.map((source) => (
                   <TableHead key={source.id}>{source.name}</TableHead>
                 ))}
                 <TableHead>{t("核验结论")}</TableHead>
@@ -118,7 +121,7 @@ export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
                 return (
                   <TableRow key={field}>
                     <TableCell>{labels[field]}</TableCell>
-                    {sources.map((source) => (
+                    {fieldSources.map((source) => (
                       <TableCell key={source.id}>
                         {query.isFetching && source.state === "unavailable"
                           ? t("查询中…")
@@ -166,6 +169,7 @@ export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
                 {t("最近观测：{0}", [date(source.observed_at ?? undefined)])}
               </p>
               {source.license && <p>{source.license}</p>}
+              {source.copyright && <p>{source.copyright}</p>}
             </div>
           ))}
           <p className="mt-2">

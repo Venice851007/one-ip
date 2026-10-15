@@ -63,7 +63,7 @@ export async function ipHealth(request, env) {
   };
   if (version === "2") {
     if (format !== "json") throw new HttpError(400, "version=2 仅支持 json");
-    const evidence = await ipEvidence(ip, request, env);
+    const evidence = await ipEvidence(ip, request, env, data.asn);
     return json({
       schema_version: 2,
       ip,

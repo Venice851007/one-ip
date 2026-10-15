@@ -13,6 +13,8 @@ const bands = {
 };
 export const scoreRuleLabels = {
   single_reputation_source: t("单一信誉来源"),
+  asn_evidence_missing: t("ASN 风险证据不足"),
+  asn_drop_record: t("ASN 命中严重风险名单"),
   incomplete_evidence: t("资料缺失或来源失效"),
   conflicting_evidence: t("来源或类型分歧"),
   tor_exit: t("Tor 出口标记"),

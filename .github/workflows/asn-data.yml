@@ -1,0 +1,37 @@
+name: Update free ASN evidence
+on:
+  schedule:
+    # Check eligibility every six hours; the updater downloads at most once/24h.
+    - cron: "37 */6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/asn-data.yml
+      - scripts/update-asn-data.mjs
+      - public/worker/asn-evidence.js
+permissions:
+  contents: write
+concurrency:
+  group: free-asn-data
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - name: Download and validate eligible official snapshot
+        run: node scripts/update-asn-data.mjs
+      - name: Publish changed data
+        run: |
+          git add data/spamhaus-asndrop.jsonl data/spamhaus-asndrop-import.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: refresh official ASN-DROP snapshot"
+          git push origin HEAD:main

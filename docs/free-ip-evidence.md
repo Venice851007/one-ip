@@ -4,8 +4,8 @@
 
 ## 已实现
 
-- 评估解释规则 `evidence-explanation-v2` 按网络属性、匿名用途、滥用与异常记录、ASN 环境展示。保留来源原分，独立展示本站规则参考分。已报告滥用/异常优先提示核实；其后依次保留来源分歧、证据不足与匿名用途。原始分数不决定本站主结论。网络用途标签不等同恶意行为。
-- 逐字段统计单源/多源报告，去除同一来源重复记录；来源数量不代表上游独立性或置信度。匿名用途与滥用分开，ASN 身份核验不等同 ASN 信誉，缺少 ASN 滥用占比时显示未评估。当前也没有住宅代理专项数据，不将普通代理或住宅标记组合推断为住宅代理。
+- 评估解释规则 `evidence-explanation-v3` 按网络属性、匿名用途、滥用与异常记录、ASN 环境展示。保留来源原分，独立展示本站规则参考分。已报告滥用/异常优先提示核实；其后依次保留来源分歧、证据不足与匿名用途。原始分数不决定本站主结论。网络用途标签不等同恶意行为。
+- 逐字段统计单源/多源报告，去除同一来源重复记录；来源数量不代表上游独立性或置信度。匿名用途与滥用分开，ASN 身份核验不等同 ASN 信誉；ASN 名单、排名与未知状态独立展示，不臆造全网滥用占比。当前也没有住宅代理专项数据，不将普通代理或住宅标记组合推断为住宅代理。
 - 解释面板保留源数据版本、最近观测与查询时间，未知时间不以查询时间填充，也不为缺少日期的滥用记录臆造衰减。过期/样例/不可用数据不贡献判断。API v2 的 `assessment.conclusion` 与 `assessment.explanation` 返回同一主结论和解释规则；v2 接口会同时核验现有免费来源；首页和详情页共享相同的证据查询与评分函数。
 - `GET /api/ip/evidence/{ip}` 返回独立来源、字段能力、数据时间和查询状态。未知、过期、未导入、未收录、样例和请求失败均不会记成未检出。
 - Tor 官方 `exit-addresses` 按小时缓存；优先使用有效的 CC0 离线快照，否则从官方源刷新，并合并并发下载，失败退避一分钟。超过 24 小时的发布或观察记录不用于阴性/阳性结论。
@@ -16,10 +16,10 @@
 
 ## 风险主结论、本站参考分与原始分数
 
-- 首页与详情页移除大号彩色信誉数字、红绿安全刻度和“良好/高信誉”评级。首页与详情显示本站规则参考分，来源原值仍单独保留；详情页将原分收进“查看来源原始分”。不修改或人为打折第三方原值。
+- 首页与详情显示本站规则参考数字，不将来源原分表述为安全等级。来源原值仍单独保留；详情页将原分收进“查看来源原始分”。不修改第三方原值。
 - 有滥用、威胁或 Bogon 异常记录时提示“存在待核实风险”；来源或类型矛盾提示“来源存在分歧”；缺少核验字段、地址分类/爬虫标记或已配置来源失效时提示“证据不足”。同时保留其他已知发现，不用主结论覆盖它们。
 - 只有单源阴性结果时只表述“暂未发现相关记录”，不推导已验证安全。匿名用途单独保留，网络类型不扣分。尚未配置的可选归属库继续明确显示未导入，不伪装为成功核验。
-- API v1 旧 `score/status` 和 v2 的 `reputation.band` 保持兼容；v2 明确标注 `band_scope=legacy_numeric_bucket_only`、`calibration=unverified`。新版 `assessment.scoring` 使用 `ip-reference-score-v1` 输出本站参考分、原始基线与适用上限，未经统计校准。当前风险主判断读取 `assessment.conclusion`，规则版本为 `provider-evidence-v3` / `evidence-explanation-v2`。
+- API v1 旧 `score/status` 和 v2 的 `reputation.band` 保持兼容；v2 明确标注 `band_scope=legacy_numeric_bucket_only`、`calibration=unverified`。新版 `assessment.scoring` 使用 `ip-reference-score-v2` 输出本站参考分、原始基线与适用上限，未经统计校准。当前风险主判断读取 `assessment.conclusion`，规则版本为 `provider-evidence-v4` / `evidence-explanation-v3`。
 
 ## 导入免费 IPinfo Lite
 
@@ -67,6 +67,12 @@ pnpm run worker:dev
 
 - [IPinfo Lite 下载版](https://ipinfo.io/developers/ipinfo-lite-database)：国家、ASN，CC BY-SA 4.0。
 - [Tor Metrics](https://metrics.torproject.org/collector.html)：出口观察数据，CC0。
+- [Spamhaus ASN-DROP](https://www.spamhaus.org/blocklists/do-not-route-or-peer/)：严重风险 ASN 名单，保留版权和日期，遵循 DROP 使用条款。
+- [CIRCL BGP Ranking](https://www.circl.lu/services/bgp-ranking/)：公开 ASN 排名，仅作背景展示，附来源和数据日期。
 - Net.Coffee：现有来源保留，免费额度与第三方转供范围尚未核实，不自动扩大接入。
 
 付费匿名库、限时试用以及未经确认可用于公开 IP 查询的免费 API 不接入本版本。
+
+## ASN 免费证据（评分 v2）
+
+现已接入 Spamhaus ASN-DROP 快照，以及 CIRCL 上一个完整 UTC 日的公开排名。ASN-DROP 命中仅作为网络背景限制上限，未列入不加分；CIRCL 原始排名只展示、不直接转换成 IP 扣分。ASN 归属不一致时暂停匹配。单一综合 IP 信誉来源最高 79，缺少有效 ASN 名单证据最高 60。快照由仓库任务维护，Worker 复用静态文件及本仓库镜像缓存；超过 36 小时失效，不能把过期数据当阴性。完整来源说明、刷新限制和测试方法见 [评分规则](./ip-reference-score.md)。

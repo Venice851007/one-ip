@@ -151,7 +151,7 @@ test("v2 separates reference score bands from abuse evidence while legacy stays 
   );
   assert.equal(data.assessment.scoring.value, 20);
   assert.equal(data.assessment.scoring.original.value, 100);
-  assert.equal(data.assessment.scoring.rule_version, "ip-reference-score-v1");
+  assert.equal(data.assessment.scoring.rule_version, "ip-reference-score-v2");
   assert.equal(data.status, undefined);
   assert.equal(
     (await worker.fetch(request("?ip=1.1.1.1&version=3"), {})).status,
@@ -186,7 +186,7 @@ test("v2 uses the same free Tor evidence and scoring formula as the page", async
   const clean = await (
     await worker.fetch(request("?ip=1.1.1.1&version=2"), {})
   ).json();
-  assert.equal(clean.assessment.scoring.value, 85);
+  assert.equal(clean.assessment.scoring.value, 60);
   assert.equal(clean.reputation.value, 95);
   const tor = await (
     await worker.fetch(request("?ip=9.9.9.9&version=2"), {})
@@ -196,4 +196,58 @@ test("v2 uses the same free Tor evidence and scoring formula as the page", async
   assert.ok(
     tor.assessment.scoring.limits.some((limit) => limit.rule === "tor_exit"),
   );
+});
+
+test("v2 applies a real ASN snapshot to the matching provider ASN and preserves per-IP abuse separately", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url) => {
+    if (!String(url).startsWith("https://ip.net.coffee/api/ip/lookup/"))
+      return new Response("source unavailable", { status: 503 });
+    const ip = String(url).split("/").at(-1);
+    return Response.json({
+      ip,
+      trust_score: 95,
+      asn: ip === "8.8.8.8" ? 245 : 13335,
+      countryCode: "US",
+      is_vpn: false,
+      is_proxy: false,
+      is_tor: false,
+      is_abuser: false,
+      is_bogon: false,
+      is_crawler: false,
+    });
+  });
+  const stamp = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const drop = [
+    JSON.stringify({ asn: 245 }),
+    JSON.stringify({
+      type: "metadata",
+      timestamp: Math.floor(Date.now() / 1000),
+      records: 1,
+      copyright: "(c) 2026 The Spamhaus Project SLU",
+      terms: "https://www.spamhaus.org/drop/terms/",
+    }),
+  ].join("\n");
+  const env = {
+    ASSETS: {
+      fetch: async (req) =>
+        new Response(
+          new URL(req.url).pathname.endsWith("asndrop.json")
+            ? drop
+            : `ExitNode FIXTURE\nPublished ${stamp}\nExitAddress 9.9.9.9 ${stamp}\n`,
+        ),
+    },
+  };
+  const clean = await (
+    await worker.fetch(request("?ip=1.1.1.1&version=2"), env)
+  ).json();
+  assert.equal(clean.assessment.scoring.value, 79);
+  assert.equal(clean.reputation.value, 95);
+  assert.equal(clean.assessment.explanation.asn.reputation, "not_listed");
+  const listed = await (
+    await worker.fetch(request("?ip=8.8.8.8&version=2"), env)
+  ).json();
+  assert.equal(listed.assessment.scoring.value, 20);
+  assert.equal(listed.assessment.explanation.asn.reputation, "risk_listed");
+  assert.equal(listed.assessment.explanation.abuse.reported, false);
+  assert.equal(listed.assessment.conclusion, "review_records");
 });

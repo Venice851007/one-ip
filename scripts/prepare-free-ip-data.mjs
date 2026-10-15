@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import "./prepare-asn-data.mjs";
 import {
   parseTorExitList,
   TOR_MAX_AGE,
@@ -18,7 +19,8 @@ try {
   let size = 0;
   for await (const chunk of response.body) {
     size += chunk.byteLength;
-    if (size > 2_000_000) throw new Error("Exit list exceeds the import budget");
+    if (size > 2_000_000)
+      throw new Error("Exit list exceeds the import budget");
     chunks.push(chunk);
   }
   const data = Buffer.concat(chunks);

@@ -21,10 +21,19 @@ const base = {
   is_bogon: false,
   is_crawler: false,
 };
+const drop = (listed = false, changes = {}) => ({
+  id: "spamhaus-asndrop",
+  name: "Spamhaus ASN-DROP",
+  state: "available",
+  capabilities: ["asn_drop"],
+  fields: { asn: "AS13335", asn_drop: listed },
+  dataset_updated_at: stamp,
+  ...changes,
+});
 const score = (data = base, sources = [], options = {}) =>
   scoreIpEvidence(
     data,
-    explainIpAssessment(data, sources, { now, ...options }),
+    explainIpAssessment(data, [...sources, drop()], { now, ...options }),
     options,
   );
 const tor = (value, changes = {}) => ({
@@ -38,10 +47,10 @@ const tor = (value, changes = {}) => ({
   ...changes,
 });
 
-test("single-provider scores are capped at 85 without changing original values", () => {
+test("single-provider scores are capped at 79 without changing original values", () => {
   for (const trust_score of [0, 41, 49, 50, 79, 80, 85, 95, 100]) {
     const result = score({ ...base, trust_score });
-    assert.equal(result.value, Math.min(trust_score, 85));
+    assert.equal(result.value, Math.min(trust_score, 79));
     assert.equal(result.original.value, trust_score);
     assert.equal(result.calibration, "heuristic_unvalidated");
   }
@@ -94,7 +103,7 @@ test("anonymous-only threat labels do not impose an additional abuse ceiling", (
       ...base,
       intelligence: { threats: [{ label: "Mobile", severity: "info" }] },
     }).value,
-    85,
+    79,
   );
   assert.equal(
     score({ ...base, intelligence: { threats: ["Malware report"] } }).value,
@@ -162,8 +171,8 @@ test("network type and geography corroboration do not create extra reputation po
     { is_public_service: true },
   ]) {
     const result = score({ ...base, ...changes }, [lite, tor(false)]);
-    assert.equal(result.value, 85);
-    assert.equal(result.dimensions.asn, "not_assessed");
+    assert.equal(result.value, 79);
+    assert.equal(result.dimensions.asn, "blocklist_evidence_ceiling");
     assert.equal(result.dimensions.network, "context_only");
   }
 });
@@ -188,8 +197,76 @@ test("score bands follow the published 80/50 display thresholds", () => {
     [49, "review"],
     [50, "caution"],
     [79, "caution"],
-    [80, "higher_reference"],
-    [100, "higher_reference"],
+    [80, "caution"],
+    [100, "caution"],
   ])
     assert.equal(score({ ...base, trust_score: value }).band, band);
+});
+
+test("ASN list hits cap the score without inventing individual IP abuse", () => {
+  const assessment = explainIpAssessment(base, [drop(true)], { now });
+  const result = scoreIpEvidence(base, assessment);
+  assert.equal(result.value, 20);
+  assert.equal(assessment.asn.reputation, "risk_listed");
+  assert.equal(assessment.abuse.reported, false);
+  assert.equal(assessment.summary, "review_records");
+  assert.ok(result.limits.some((item) => item.rule === "asn_drop_record"));
+  assert.equal(score(base, [drop(false)]).value, 79);
+});
+
+test("missing, stale, mismatched and conflicting ASN evidence never earns high scores or a list finding", () => {
+  const none = explainIpAssessment(base, [], { now });
+  assert.equal(scoreIpEvidence(base, none).value, 60);
+  for (const source of [
+    drop(true, { state: "unavailable" }),
+    drop(true, { dataset_updated_at: "2026-10-13T00:00:00Z" }),
+    drop(true, { dataset_updated_at: "2026-10-16T00:00:00Z" }),
+    drop(true, { fields: { asn: "AS245", asn_drop: true } }),
+    drop(true, { capabilities: ["asn"] }),
+  ]) {
+    const assessment = explainIpAssessment(base, [source], { now });
+    assert.equal(assessment.asn.drop.listed, null);
+    assert.equal(scoreIpEvidence(base, assessment).value, 60);
+  }
+  const lite = {
+    id: "ipinfo-lite",
+    name: "Lite",
+    state: "available",
+    capabilities: ["asn"],
+    fields: { asn: "AS245" },
+    dataset_updated_at: stamp,
+  };
+  const conflict = explainIpAssessment(base, [drop(true), lite], { now });
+  assert.equal(conflict.asn.reputation, "mapping_conflict");
+  assert.equal(conflict.asn.drop.listed, null);
+  assert.equal(scoreIpEvidence(base, conflict).value, 60);
+});
+
+test("CIRCL ranking is dated ASN context and never a direct IP penalty or bonus", () => {
+  for (const rank of [0, 0.0001, 10]) {
+    const source = {
+      id: "circl-bgp",
+      name: "CIRCL",
+      state: "available",
+      capabilities: ["asn_ranking"],
+      dataset_updated_at: "2026-10-14T00:00:00Z",
+      fields: {
+        asn: "AS13335",
+        asn_rank: rank,
+        asn_position: 2,
+        asn_total: 100,
+      },
+    };
+    const assessment = explainIpAssessment(base, [drop(false), source], {
+      now,
+    });
+    assert.equal(assessment.asn.ranking.rank, rank);
+    assert.equal(assessment.asn.ranking.date, "2026-10-14");
+    assert.equal(scoreIpEvidence(base, assessment).value, 79);
+    source.fields.asn = "AS245";
+    assert.equal(
+      explainIpAssessment(base, [source], { now }).asn.ranking.rank,
+      null,
+    );
+  }
 });

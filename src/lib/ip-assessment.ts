@@ -69,17 +69,19 @@ export function assessIpRecord(
     states,
     unknown_fields: unknown,
     conclusion: explanation.summary,
-    rule_version: "provider-evidence-v3",
+    rule_version: "provider-evidence-v4",
     explanation,
     scoring: scoreIpEvidence(data, explanation),
   };
 }
 
-// Product policy, not empirically calibrated probabilities. Network type and
-// unassessed ASN reputation carry no numerical adjustment. Reporting the same
+// Product policy, not empirically calibrated probabilities. Network identity
+// or missing evidence never earns extra points. Reporting the same
 // risk through multiple labels/sources never stacks deductions.
 export const IP_SCORE_LIMITS = {
-  single_reputation_source: 85,
+  single_reputation_source: 79,
+  asn_evidence_missing: 60,
+  asn_drop_record: 20,
   incomplete_evidence: 60,
   conflicting_evidence: 60,
   tor_exit: 40,
@@ -119,6 +121,8 @@ export function scoreIpEvidence(
     if (applies) limits.push({ rule, ceiling: IP_SCORE_LIMITS[rule] });
   };
   limit("single_reputation_source", true);
+  limit("asn_evidence_missing", assessment.asn.drop.state !== "available");
+  limit("asn_drop_record", assessment.asn.drop.listed === true);
   limit(
     "incomplete_evidence",
     assessment.findings.includes("incomplete_evidence"),
@@ -165,7 +169,7 @@ export function scoreIpEvidence(
           ? "caution"
           : "review";
   return {
-    rule_version: "ip-reference-score-v1",
+    rule_version: "ip-reference-score-v2",
     method: "provider-baseline-with-evidence-ceilings",
     calibration: "heuristic_unvalidated",
     direction: "higher-is-better",
@@ -185,7 +189,10 @@ export function scoreIpEvidence(
       network: "context_only",
       anonymity: "evidence_ceiling",
       reputation: "evidence_ceiling",
-      asn: "not_assessed",
+      asn:
+        assessment.asn.drop.state === "available"
+          ? "blocklist_evidence_ceiling"
+          : "not_assessed",
     },
   };
 }
@@ -199,6 +206,7 @@ export type AssessmentSource = {
   queried_at?: string;
   dataset_updated_at?: string;
   observed_at?: string | null;
+  copyright?: string;
 };
 
 const fieldKeys = [
@@ -414,13 +422,24 @@ export function explainIpAssessment(
     (report) => report.value === true,
   );
   const bogon = typeof data.is_bogon === "boolean" ? data.is_bogon : null;
+  const asn = explainAsnEvidence(
+    data,
+    extra,
+    fields.asn.state === "conflict",
+    now,
+  );
   const needsReview =
-    abuseReported || behaviorThreats.length > 0 || bogon === true;
+    abuseReported ||
+    behaviorThreats.length > 0 ||
+    bogon === true ||
+    asn.drop.listed === true;
   const incomplete =
     unknown.length > 0 ||
     bogon === null ||
     typeof data.is_crawler !== "boolean" ||
-    unavailableSources.length > 0;
+    unavailableSources.length > 0 ||
+    (extra.some((source) => source.id === "spamhaus-asndrop") &&
+      asn.drop.state !== "available");
   const findings: AssessmentConclusion[] = [];
   if (needsReview) findings.push("review_records");
   if (conflicts.length || typeConflict) findings.push("review_conflicts");
@@ -436,7 +455,7 @@ export function explainIpAssessment(
           ? "anonymity_reported"
           : "no_records_reported";
   return {
-    rule_version: "evidence-explanation-v2",
+    rule_version: "evidence-explanation-v3",
     summary,
     findings,
     // This is field availability, never a confidence or safety percentage.
@@ -456,7 +475,91 @@ export function explainIpAssessment(
       bogon,
       record_time: null,
     },
-    asn: { reputation: "not_assessed" },
+    asn,
     fields,
+  };
+}
+
+function explainAsnEvidence(
+  data: Record<string, unknown>,
+  sources: readonly AssessmentSource[],
+  mappingConflict: boolean,
+  now: number,
+) {
+  const n =
+    Number.isInteger(data.asn) &&
+    Number(data.asn) > 0 &&
+    Number(data.asn) <= 4294967295
+      ? Number(data.asn)
+      : null;
+  const queryAsn = n ? `AS${n}` : null;
+  const drop = sources.find((source) => source.id === "spamhaus-asndrop");
+  const ranking = sources.find((source) => source.id === "circl-bgp");
+  const fresh = (source: AssessmentSource | undefined, age: number) => {
+    const date = Date.parse(source?.dataset_updated_at ?? "");
+    return Number.isFinite(date) && date <= now + 300_000 && now - date <= age;
+  };
+  const dropMatches =
+    queryAsn !== null && drop?.fields.asn === queryAsn && !mappingConflict;
+  const dropAvailable =
+    dropMatches &&
+    drop?.state === "available" &&
+    drop.capabilities.includes("asn_drop") &&
+    fresh(drop, 36 * 60 * 60_000) &&
+    typeof drop.fields.asn_drop === "boolean";
+  const state = mappingConflict
+    ? "mapping_conflict"
+    : dropAvailable
+      ? "available"
+      : drop?.state === "available" &&
+          dropMatches &&
+          !fresh(drop, 36 * 60 * 60_000)
+        ? "stale"
+        : "unavailable";
+  const listed = dropAvailable ? (drop.fields.asn_drop as boolean) : null;
+  const rank = ranking?.fields.asn_rank;
+  const position = ranking?.fields.asn_position;
+  const total = ranking?.fields.asn_total;
+  const rankAvailable =
+    !mappingConflict &&
+    queryAsn !== null &&
+    ranking?.fields.asn === queryAsn &&
+    ranking.state === "available" &&
+    ranking.capabilities.includes("asn_ranking") &&
+    fresh(ranking, 3 * 86_400_000) &&
+    typeof rank === "number" &&
+    Number.isFinite(rank) &&
+    rank >= 0 &&
+    Number.isInteger(position) &&
+    Number(position) >= 1 &&
+    Number.isInteger(total) &&
+    Number(total) >= Number(position);
+  return {
+    reputation: mappingConflict
+      ? "mapping_conflict"
+      : listed === true
+        ? "risk_listed"
+        : listed === false
+          ? "not_listed"
+          : "not_assessed",
+    query_asn: queryAsn,
+    mapping_source: queryAsn ? "Net.Coffee" : null,
+    drop: {
+      state,
+      listed,
+      dataset_updated_at: drop?.dataset_updated_at ?? null,
+      queried_at: drop?.queried_at ?? null,
+      copyright: typeof drop?.copyright === "string" ? drop.copyright : null,
+      source: "https://www.spamhaus.org/blocklists/do-not-route-or-peer/",
+      terms: "https://www.spamhaus.org/drop/terms/",
+    },
+    ranking: {
+      state: rankAvailable ? "available" : "unavailable",
+      rank: rankAvailable ? (rank as number) : null,
+      position: rankAvailable ? (position as number) : null,
+      total: rankAvailable ? (total as number) : null,
+      date: rankAvailable ? ranking.dataset_updated_at!.slice(0, 10) : null,
+      source: "https://bgpranking.circl.lu/",
+    },
   };
 }

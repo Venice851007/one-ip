@@ -1820,5 +1820,17 @@
   "参考了 MyIP 的维度与分档展示；这些上限是本站规则，并非 MyIP 未公开的评分公式。": "The dimensions and band presentation reference MyIP. These ceilings are this site's rules, not MyIP's unpublished formula.",
   "评分规则版本：{0}": "Scoring rule version: {0}",
   "完整评分规则": "Full scoring rules",
-  "新版 assessment.scoring.value 是本站规则参考分，reputation.value 保留来源原分。首页、详情和 API 使用相同公式与免费核验来源；限分条件见 assessment.scoring.limits。": "In v2, assessment.scoring.value is the site rule-based reference score; reputation.value retains the original provider score. Home, detail and API views use the same formula and free evidence sources. Applicable ceilings appear in assessment.scoring.limits."
+  "新版 assessment.scoring.value 是本站规则参考分，reputation.value 保留来源原分。首页、详情和 API 使用相同公式与免费核验来源；限分条件见 assessment.scoring.limits。": "In v2, assessment.scoring.value is the site rule-based reference score; reputation.value retains the original provider score. Home, detail and API views use the same formula and free evidence sources. Applicable ceilings appear in assessment.scoring.limits.",
+  "ASN 风险证据不足": "Insufficient ASN risk evidence",
+  "ASN 命中严重风险名单": "ASN listed in a severe-risk blocklist",
+  "网络类型只作说明；ASN-DROP 命中可限制评分，未命中不加分。单一信誉来源最高 79 分；规则上限不是统计置信度。": "Network type is context only. An ASN-DROP listing may cap the score; absence earns no points. A single reputation provider is capped at 79. Rule ceilings are not statistical confidence.",
+  "ASN-DROP 未列入": "Not listed in ASN-DROP",
+  "ASN 归属有分歧，暂停网络信誉判断": "ASN attribution conflicts; network risk assessment paused",
+  "ASN 是网络背景；命中名单不等于该 IP 已有滥用记录。未列入不能证明信誉良好，也不加分。": "ASN evidence is network context. A listing does not establish abuse by this IP. Absence does not prove a good reputation or earn points.",
+  "数据版本：{0}；查询时间：{1}": "Dataset version: {0}; queried: {1}",
+  "暂无可核验的近期排名": "No verifiable recent ranking",
+  "日期：{0}；风险排序：{1}/{2}；原始指标：{3}": "Date: {0}; risk position: {1}/{2}; raw metric: {3}",
+  "CIRCL 风险排序越靠前越需留意，范围仅限当日参与排名的网络；目前只作背景展示，不换算为 IP 分数。": "Earlier CIRCL positions warrant more scrutiny, within networks ranked that day. This is context only and is not converted into an IP score.",
+  "免费来源核验国家、ASN、Tor 出口及 ASN 风险背景，不提供第二家综合 IP 信誉评分。未检出不等于不存在风险。": "Free sources check country, ASN, Tor exits and ASN risk context. They do not provide a second comprehensive IP reputation score. No detection does not mean no risk.",
+  "请输入有效的 ASN": "Enter a valid ASN"
 }

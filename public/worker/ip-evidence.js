@@ -1,6 +1,12 @@
 import { Reader } from "mmdb-lib";
 import { Buffer } from "node:buffer";
 import { isIP } from "node:net";
+import {
+  asnNumber,
+  asnDropEvidence,
+  circlEvidence,
+  requestedAsn,
+} from "./asn-evidence.js";
 import { boundedJson, publicIp } from "./http.js";
 
 export const TOR_SOURCE = "https://check.torproject.org/exit-addresses";
@@ -250,18 +256,28 @@ async function liteEvidence(ip, request, env, now) {
   }
 }
 
-export async function ipEvidence(ip, request, env) {
+export async function ipEvidence(
+  ip,
+  request,
+  env,
+  asn = requestedAsn(request),
+) {
   ip = publicIp(ip);
+  asn = asnNumber(asn);
   const now = Date.now();
   const sources = await Promise.all([
     torEvidence(ip, now, request, env),
     liteEvidence(ip, request, env, now),
+    asnDropEvidence(asn, request, env, now),
+    circlEvidence(asn, now),
   ]);
   return {
     schema_version: 2,
     ip,
     checked_at: new Date(now).toISOString(),
     reputation_scope: "single-provider",
+    queried_asn: asn ? `AS${asn}` : null,
+    asn_mapping_scope: "caller_supplied_not_independently_verified",
     sources,
   };
 }

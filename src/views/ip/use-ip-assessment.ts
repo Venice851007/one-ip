@@ -6,10 +6,10 @@ import { sourceObservations, type FreeEvidence } from "./source-evidence";
 
 export function useIpAssessment(data: CoffeeLookup) {
   const query = useQuery({
-    queryKey: ["free-ip-evidence-v2", data.coffee.ip],
+    queryKey: ["free-ip-evidence-v2", data.coffee.ip, data.coffee.asn],
     queryFn: ({ signal }) =>
       endpoint<FreeEvidence>(
-        `/ip/evidence/${encodeURIComponent(data.coffee.ip)}`,
+        `/ip/evidence/${encodeURIComponent(data.coffee.ip)}${data.sourceState !== "unavailable" && Number.isInteger(data.coffee.asn) && data.coffee.asn! > 0 ? `?asn=${data.coffee.asn}` : ""}`,
         { signal },
       ),
     staleTime: 60_000,
