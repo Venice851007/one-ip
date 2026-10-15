@@ -18,14 +18,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSortAnimation } from "@/hooks/use-sort-animation";
 import { t } from "@/i18n";
 import { toolGroups } from "@/layout/routes";
-import { explainIpAssessment } from "@/lib/ip-assessment";
 import { companyTypeColors } from "@/lib/ip-badge-colors";
 import { BrowserSummary } from "@/views/browser/summary";
 import { lookupIp } from "@/views/ip/api";
-import {
-  AssessmentVerdict,
-  ProviderReference,
-} from "@/views/ip/assessment-verdict";
+import { HomeIpScore } from "@/views/ip/reference-score";
 import { testConnectivity, type ProbeResult } from "@/views/link/api";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -72,6 +68,7 @@ export function HomePage() {
           "split",
           "geoip",
           "lookup-ip-coffee",
+          "free-ip-evidence-v2",
           "connectivity",
           "connectivity-progress",
           "ai-preview",
@@ -163,7 +160,7 @@ export function HomePage() {
   const geoByIp = new Map(ips.map((ip, index) => [ip, geoQueries[index]]));
   const typeQueries = useQueries({
     queries: ips.map((ip) => ({
-      queryKey: ["lookup-ip-coffee", ip],
+      queryKey: ["lookup-ip-coffee", "free-ip-evidence-v2", ip],
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         lookupIp(ip, AbortSignal.any([signal, AbortSignal.timeout(3000)])),
       staleTime: 3600_000,
@@ -200,9 +197,6 @@ export function HomePage() {
           const classification = data ? typeByIp.get(data.ip) : undefined;
           const company = classification?.isSuccess
             ? classification.data.coffee
-            : undefined;
-          const assessment = company
-            ? explainIpAssessment({ ...company })
             : undefined;
           const typeLabels = company
             ? [
@@ -291,11 +285,8 @@ export function HomePage() {
                     )}
                   </div>
                 </div>
-                {assessment && (
-                  <div className="mt-2 space-y-1">
-                    <AssessmentVerdict assessment={assessment} />
-                    <ProviderReference value={company?.trust_score} />
-                  </div>
+                {classification?.isSuccess && (
+                  <HomeIpScore data={classification.data} />
                 )}
                 <div className="primary-ip-meta text-sm text-muted-foreground">
                   {loading ? (

@@ -1,4 +1,5 @@
 import { HttpError, json, publicIp, upstream } from "./http.js";
+import { ipEvidence } from "./ip-evidence.js";
 import {
   assessIpRecord,
   referenceBand,
@@ -62,6 +63,7 @@ export async function ipHealth(request, env) {
   };
   if (version === "2") {
     if (format !== "json") throw new HttpError(400, "version=2 仅支持 json");
+    const evidence = await ipEvidence(ip, request, env);
     return json({
       schema_version: 2,
       ip,
@@ -76,7 +78,7 @@ export async function ipHealth(request, env) {
         calibration: "unverified",
         updated_at: null,
       },
-      assessment: assessIpRecord(data, result.checked_at),
+      assessment: assessIpRecord(data, result.checked_at, evidence.sources),
       flags: result.flags,
     });
   }

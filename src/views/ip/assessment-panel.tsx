@@ -1,8 +1,9 @@
 import { ToolCard } from "@/components/toolkit";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/i18n";
-import type { explainIpAssessment } from "@/lib/ip-assessment";
+import type { explainIpAssessment, scoreIpEvidence } from "@/lib/ip-assessment";
 import { AssessmentVerdict, ProviderReference } from "./assessment-verdict";
+import { ReferenceScore, scoreRuleLabels } from "./reference-score";
 
 type Explanation = ReturnType<typeof explainIpAssessment>;
 const fieldNames = {
@@ -37,10 +38,12 @@ const time = (value: string | null) =>
 
 export function IpAssessmentPanel({
   assessment,
+  scoring,
   loading = false,
   referenceScore,
 }: {
   assessment: Explanation;
+  scoring: ReturnType<typeof scoreIpEvidence>;
   loading?: boolean;
   referenceScore?: number;
 }) {
@@ -48,8 +51,9 @@ export function IpAssessmentPanel({
     .filter(([, value]) => value === true)
     .map(([key]) => networkLabels[key as keyof typeof networkLabels]);
   return (
-    <ToolCard title={t("IP 风险判断")}>
+    <ToolCard title={t("IP 参考评分与依据")}>
       <div aria-busy={loading} className="space-y-3">
+        <ReferenceScore scoring={scoring} loading={loading} />
         <div className="flex flex-wrap items-center gap-2">
           <AssessmentVerdict assessment={assessment} prominent />
           {loading && (
@@ -65,10 +69,52 @@ export function IpAssessmentPanel({
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          {t(
-            "保留 Net.Coffee 原始信誉分，按证据解释网络用途与风险记录；本页不另算综合安全分。",
-          )}
+          {t("评分采用公开的本站试行规则，风险记录和来源分歧仍单独保留。")}
         </p>
+        <details className="rounded-lg border p-3 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium text-foreground">
+            {t("查看评分公式与限制上限")}
+          </summary>
+          <p className="mt-2">
+            {t(
+              "本站分 = 向下取整(min(来源原分，所有适用规则上限))。多个标记只取最严格上限，不叠加扣分。",
+            )}
+          </p>
+          <dl className="mt-2 space-y-1">
+            {scoring.limits.map((limit) => (
+              <div key={limit.rule} className="flex justify-between gap-2">
+                <dt>{scoreRuleLabels[limit.rule]}</dt>
+                <dd>{t("最高 {0} 分", [limit.ceiling])}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2">
+            {t(
+              "网络类型只作说明；尚无 ASN 信誉数据，不给该维度加分或扣分。单源上限是本站产品规则，不是统计置信度。",
+            )}
+          </p>
+          <p className="mt-1">
+            {t(
+              "分档：80–100 参考较高，50–79 需留意，0–49 重点核实；不等同于安全等级。",
+            )}
+          </p>
+          <p className="mt-1">
+            {t(
+              "参考了 MyIP 的维度与分档展示；这些上限是本站规则，并非 MyIP 未公开的评分公式。",
+            )}
+          </p>
+          <p className="mt-1">
+            {t("评分规则版本：{0}", [scoring.rule_version])}
+          </p>
+          <a
+            className="mt-2 inline-block underline"
+            href="https://github.com/Venice851007/one-ip/blob/main/docs/ip-reference-score.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("完整评分规则")}
+          </a>
+        </details>
         <p className="text-xs text-muted-foreground">
           {t(
             "滥用、VPN 和代理仍仅由 Net.Coffee 提供，尚未完成独立多源信誉核验。",

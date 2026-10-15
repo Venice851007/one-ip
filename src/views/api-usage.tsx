@@ -62,6 +62,11 @@ export default function ApiUsagePage() {
         code={`curl -fsS '${endpoint}?version=2'`}
         language="bash"
       />
+      <p className="text-sm leading-6 text-muted-foreground">
+        {t(
+          "新版 assessment.scoring.value 是本站规则参考分，reputation.value 保留来源原分。首页、详情和 API 使用相同公式与免费核验来源；限分条件见 assessment.scoring.limits。",
+        )}
+      </p>
       <a
         className="inline-block text-sm text-primary hover:underline"
         href={site.blog}

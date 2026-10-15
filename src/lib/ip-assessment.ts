@@ -19,6 +19,7 @@ export function referenceBand(value: unknown) {
 export function assessIpRecord(
   data: Record<string, unknown>,
   queriedAt?: string,
+  sources: readonly AssessmentSource[] = [],
 ) {
   const keys = [
     "is_vpn",
@@ -62,7 +63,7 @@ export function assessIpRecord(
     states.push("low_provider_score");
   if (unknown.length) states.push("incomplete_flags");
   if (!states.length) states.push("no_flags_reported");
-  const explanation = explainIpAssessment(data, [], { queriedAt });
+  const explanation = explainIpAssessment(data, sources, { queriedAt });
   return {
     scope: "single-provider",
     states,
@@ -70,6 +71,122 @@ export function assessIpRecord(
     conclusion: explanation.summary,
     rule_version: "provider-evidence-v3",
     explanation,
+    scoring: scoreIpEvidence(data, explanation),
+  };
+}
+
+// Product policy, not empirically calibrated probabilities. Network type and
+// unassessed ASN reputation carry no numerical adjustment. Reporting the same
+// risk through multiple labels/sources never stacks deductions.
+export const IP_SCORE_LIMITS = {
+  single_reputation_source: 85,
+  incomplete_evidence: 60,
+  conflicting_evidence: 60,
+  tor_exit: 40,
+  proxy: 50,
+  vpn_exit: 60,
+  crawler: 70,
+  abuse_record: 20,
+  other_threat_record: 40,
+  bogon_record: 10,
+} as const;
+
+function knownUsageRecord(
+  label: string,
+  confirmed: readonly string[],
+  crawler: boolean,
+) {
+  const text = label.trim();
+  if (/^tor(?:\s*(?:exit|出口|exit node))?$/i.test(text))
+    return confirmed.includes("tor_exit");
+  if (/^(?:(?:open\s+)?proxy|代理(?:出口)?)$/i.test(text))
+    return confirmed.includes("proxy");
+  if (/^vpn(?:\s+exit)?$/i.test(text)) return confirmed.includes("vpn_exit");
+  return /^(?:爬虫|crawler)$/i.test(text) && crawler;
+}
+
+export function scoreIpEvidence(
+  data: Record<string, unknown>,
+  assessment: ReturnType<typeof explainIpAssessment>,
+  options: { primaryAvailable?: boolean } = {},
+) {
+  const original =
+    options.primaryAvailable === false
+      ? null
+      : referenceScore(data.trust_score);
+  const limits: { rule: keyof typeof IP_SCORE_LIMITS; ceiling: number }[] = [];
+  const limit = (rule: keyof typeof IP_SCORE_LIMITS, applies: boolean) => {
+    if (applies) limits.push({ rule, ceiling: IP_SCORE_LIMITS[rule] });
+  };
+  limit("single_reputation_source", true);
+  limit(
+    "incomplete_evidence",
+    assessment.findings.includes("incomplete_evidence"),
+  );
+  limit(
+    "conflicting_evidence",
+    assessment.findings.includes("review_conflicts"),
+  );
+  limit("tor_exit", assessment.anonymity.detected.includes("tor_exit"));
+  limit("proxy", assessment.anonymity.detected.includes("proxy"));
+  limit("vpn_exit", assessment.anonymity.detected.includes("vpn_exit"));
+  limit("crawler", assessment.network.flags.is_crawler === true);
+  limit("abuse_record", assessment.abuse.reported);
+  limit("bogon_record", assessment.abuse.bogon === true);
+  // These labels describe anonymity/use, which has already received its own
+  // ceiling. An upstream threat list must not convert them into abuse twice.
+  const threats = assessment.abuse.threats.filter(
+    (label) =>
+      !knownUsageRecord(
+        label,
+        assessment.anonymity.detected,
+        assessment.network.flags.is_crawler === true,
+      ),
+  );
+  limit("other_threat_record", threats.length > 0);
+  const knownRiskFields = ["vpn_exit", "proxy", "tor_exit", "abuse"] as const;
+  const known = knownRiskFields.filter(
+    (key) => assessment.fields[key].reports.length > 0,
+  ).length;
+  const hasPositive =
+    assessment.abuse.reported ||
+    assessment.abuse.bogon === true ||
+    threats.length > 0 ||
+    assessment.anonymity.detected.length > 0;
+  const eligible = original !== null && (known >= 2 || hasPositive);
+  const ceiling = Math.min(...limits.map((item) => item.ceiling));
+  const value = eligible ? Math.floor(Math.min(original!, ceiling)) : null;
+  const band: "unavailable" | "higher_reference" | "caution" | "review" =
+    value === null
+      ? "unavailable"
+      : value >= 80
+        ? "higher_reference"
+        : value >= 50
+          ? "caution"
+          : "review";
+  return {
+    rule_version: "ip-reference-score-v1",
+    method: "provider-baseline-with-evidence-ceilings",
+    calibration: "heuristic_unvalidated",
+    direction: "higher-is-better",
+    scale: [0, 100],
+    value,
+    band,
+    original: { source: "Net.Coffee", value: original },
+    ceiling,
+    limits,
+    availability:
+      original === null
+        ? "provider_score_unavailable"
+        : eligible
+          ? "available"
+          : "insufficient_evidence",
+    dimensions: {
+      network: "context_only",
+      anonymity: "evidence_ceiling",
+      reputation: "evidence_ceiling",
+      asn: "not_assessed",
+    },
   };
 }
 
@@ -287,13 +404,18 @@ export function explainIpAssessment(
   const detectedAnonymity = anonymityKeys.filter((key) =>
     fields[key].reports.some((report) => report.value === true),
   );
+  const behaviorThreats = threats.filter(
+    (label) =>
+      !knownUsageRecord(label, detectedAnonymity, data.is_crawler === true),
+  );
   const conflicts = fieldKeys.filter((key) => fields[key].state === "conflict");
   const unknown = fieldKeys.filter((key) => fields[key].state === "unknown");
   const abuseReported = fields.abuse.reports.some(
     (report) => report.value === true,
   );
   const bogon = typeof data.is_bogon === "boolean" ? data.is_bogon : null;
-  const needsReview = abuseReported || threats.length > 0 || bogon === true;
+  const needsReview =
+    abuseReported || behaviorThreats.length > 0 || bogon === true;
   const incomplete =
     unknown.length > 0 ||
     bogon === null ||
@@ -330,7 +452,7 @@ export function explainIpAssessment(
     anonymity: { detected: detectedAnonymity },
     abuse: {
       reported: abuseReported,
-      threats: [...new Set(threats)],
+      threats: [...new Set(behaviorThreats)],
       bogon,
       record_time: null,
     },

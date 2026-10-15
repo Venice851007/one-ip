@@ -10,18 +10,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { t } from "@/i18n";
-import { explainIpAssessment } from "@/lib/ip-assessment";
-import { endpoint } from "@/lib/network";
-import { useQuery } from "@tanstack/react-query";
 import { IpAssessmentPanel } from "./assessment-panel";
 import type { CoffeeLookup } from "./coffee";
 import {
   compareField,
   evidenceFields,
-  sourceObservations,
-  type FreeEvidence,
   type SourceObservation,
 } from "./source-evidence";
+import { useIpAssessment } from "./use-ip-assessment";
 
 const labels = {
   country_code: t("国家"),
@@ -63,30 +59,12 @@ const date = (value?: string) =>
     : t("未知");
 
 export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
-  const query = useQuery({
-    queryKey: ["free-ip-evidence-v2", data.coffee.ip],
-    queryFn: ({ signal }) =>
-      endpoint<FreeEvidence>(
-        `/ip/evidence/${encodeURIComponent(data.coffee.ip)}`,
-        { signal },
-      ),
-    staleTime: 60_000,
-    retry: false,
-  });
-  const sources = sourceObservations(
-    data.coffee,
-    query.data,
-    data.queriedAt,
-    data.sourceState,
-  );
-  const assessment = explainIpAssessment({ ...data.coffee }, sources, {
-    primaryAvailable: data.sourceState !== "unavailable",
-    queriedAt: data.queriedAt,
-  });
+  const { query, sources, assessment, scoring } = useIpAssessment(data);
   return (
     <>
       <IpAssessmentPanel
         assessment={assessment}
+        scoring={scoring}
         loading={query.isFetching}
         referenceScore={
           data.sourceState === "unavailable"
