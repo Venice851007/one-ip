@@ -129,6 +129,17 @@ test("v2 separates reference score bands from abuse evidence while legacy stays 
   assert.equal(data.reputation.value, 100);
   assert.equal(data.reputation.updated_at, null);
   assert.ok(data.assessment.states.includes("abuse_record"));
+  assert.equal(data.assessment.explanation.summary, "review_records");
+  assert.equal(data.assessment.explanation.asn.reputation, "not_assessed");
+  assert.equal(data.assessment.explanation.fields.abuse.support, "single");
+  assert.equal(
+    data.assessment.explanation.fields.abuse.reports[0].queried_at,
+    data.checked_at,
+  );
+  assert.equal(
+    data.assessment.explanation.fields.abuse.reports[0].observed_at,
+    null,
+  );
   assert.equal(data.status, undefined);
   assert.equal(
     (await worker.fetch(request("?ip=1.1.1.1&version=3"), {})).status,

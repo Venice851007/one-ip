@@ -74,7 +74,7 @@ export async function ipHealth(request, env) {
         band: referenceBand(score),
         updated_at: null,
       },
-      assessment: assessIpRecord(data),
+      assessment: assessIpRecord(data, result.checked_at),
       flags: result.flags,
     });
   }

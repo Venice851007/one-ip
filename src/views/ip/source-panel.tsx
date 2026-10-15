@@ -10,9 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { t } from "@/i18n";
-import { assessIpRecord } from "@/lib/ip-assessment";
+import { explainIpAssessment } from "@/lib/ip-assessment";
 import { endpoint } from "@/lib/network";
 import { useQuery } from "@tanstack/react-query";
+import { IpAssessmentPanel } from "./assessment-panel";
 import type { CoffeeLookup } from "./coffee";
 import {
   compareField,
@@ -78,107 +79,116 @@ export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
     data.queriedAt,
     data.sourceState,
   );
-  const assessment = assessIpRecord({ ...data.coffee });
+  const assessment = explainIpAssessment({ ...data.coffee }, sources, {
+    primaryAvailable: data.sourceState !== "unavailable",
+    queriedAt: data.queriedAt,
+  });
   return (
-    <ToolCard title={t("免费来源核验")}>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">
-          {data.sourceState === "unavailable"
-            ? t("信誉数据暂缺")
-            : t("信誉：仅 Net.Coffee 参考")}
-        </Badge>
-        {assessment.states.includes("abuse_record") && (
-          <Badge variant="warning">{t("来源记录了滥用活动，请核实")}</Badge>
-        )}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={query.isFetching}
-          onClick={() => void query.refetch()}
-        >
-          {query.isFetching ? t("查询中…") : t("刷新核验")}
-        </Button>
-      </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        {t(
-          "免费库分别核验国家、ASN 和 Tor 出口，不提供第二家综合信誉评分。未检出不等于不存在风险。",
-        )}
-      </p>
-      {query.error && (
-        <p role="status" className="mb-2 text-xs text-muted-foreground">
-          {t("免费来源暂不可用，保留已有来源结果。")}
-        </p>
-      )}
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("核验字段")}</TableHead>
-              {sources.map((source) => (
-                <TableHead key={source.id}>{source.name}</TableHead>
-              ))}
-              <TableHead>{t("核验结论")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {evidenceFields.map((field) => {
-              const comparison = compareField(sources, field);
-              return (
-                <TableRow key={field}>
-                  <TableCell>{labels[field]}</TableCell>
-                  {sources.map((source) => (
-                    <TableCell key={source.id}>
-                      {query.isFetching && source.state === "unavailable"
-                        ? t("查询中…")
-                        : display(source, field)}
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <Badge
-                      variant={
-                        comparison.state === "different"
-                          ? "warning"
-                          : "secondary"
-                      }
-                    >
-                      {comparisons[comparison.state]}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      <details className="mt-3 text-xs text-muted-foreground">
-        <summary>{t("来源时间与许可")}</summary>
-        {sources.map((source) => (
-          <div key={source.id} className="mt-2">
-            <a
-              className="underline"
-              href={source.source}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {source.name}
-            </a>
-            {" · "}
-            {states[source.state]}
-            <p>
-              {t("查询时间：{0}；数据版本时间：{1}", [
-                date(source.queried_at),
-                date(source.dataset_updated_at),
-              ])}
-            </p>
-            {source.license && <p>{source.license}</p>}
-          </div>
-        ))}
-        <p className="mt-2">
+    <>
+      <IpAssessmentPanel assessment={assessment} loading={query.isFetching} />
+      <ToolCard title={t("免费来源核验")}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">
+            {data.sourceState === "unavailable"
+              ? t("信誉数据暂缺")
+              : t("信誉：仅 Net.Coffee 参考")}
+          </Badge>
+          {assessment.abuse.reported && (
+            <Badge variant="warning">{t("来源记录了滥用活动，请核实")}</Badge>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+          >
+            {query.isFetching ? t("查询中…") : t("刷新核验")}
+          </Button>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
           {t(
-            "IPinfo Lite 数据来源为 IPinfo（CC BY-SA 4.0）；Tor Project 出口记录为 CC0。归属地一致不能证明原生线路，网络类型与匿名用途可以同时成立。",
+            "免费库分别核验国家、ASN 和 Tor 出口，不提供第二家综合信誉评分。未检出不等于不存在风险。",
           )}
         </p>
-      </details>
-    </ToolCard>
+        {query.error && (
+          <p role="status" className="mb-2 text-xs text-muted-foreground">
+            {t("免费来源暂不可用，保留已有来源结果。")}
+          </p>
+        )}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("核验字段")}</TableHead>
+                {sources.map((source) => (
+                  <TableHead key={source.id}>{source.name}</TableHead>
+                ))}
+                <TableHead>{t("核验结论")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {evidenceFields.map((field) => {
+                const comparison = compareField(sources, field);
+                return (
+                  <TableRow key={field}>
+                    <TableCell>{labels[field]}</TableCell>
+                    {sources.map((source) => (
+                      <TableCell key={source.id}>
+                        {query.isFetching && source.state === "unavailable"
+                          ? t("查询中…")
+                          : display(source, field)}
+                      </TableCell>
+                    ))}
+                    <TableCell>
+                      <Badge
+                        variant={
+                          comparison.state === "different"
+                            ? "warning"
+                            : "secondary"
+                        }
+                      >
+                        {comparisons[comparison.state]}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        <details className="mt-3 text-xs text-muted-foreground">
+          <summary>{t("来源时间与许可")}</summary>
+          {sources.map((source) => (
+            <div key={source.id} className="mt-2">
+              <a
+                className="underline"
+                href={source.source}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {source.name}
+              </a>
+              {" · "}
+              {states[source.state]}
+              <p>
+                {t("查询时间：{0}；数据版本时间：{1}", [
+                  date(source.queried_at),
+                  date(source.dataset_updated_at),
+                ])}
+              </p>
+              <p>
+                {t("最近观测：{0}", [date(source.observed_at ?? undefined)])}
+              </p>
+              {source.license && <p>{source.license}</p>}
+            </div>
+          ))}
+          <p className="mt-2">
+            {t(
+              "IPinfo Lite 数据来源为 IPinfo（CC BY-SA 4.0）；Tor Project 出口记录为 CC0。归属地一致不能证明原生线路，网络类型与匿名用途可以同时成立。",
+            )}
+          </p>
+        </details>
+      </ToolCard>
+    </>
   );
 }
