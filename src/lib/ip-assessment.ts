@@ -62,12 +62,14 @@ export function assessIpRecord(
     states.push("low_provider_score");
   if (unknown.length) states.push("incomplete_flags");
   if (!states.length) states.push("no_flags_reported");
+  const explanation = explainIpAssessment(data, [], { queriedAt });
   return {
     scope: "single-provider",
     states,
     unknown_fields: unknown,
-    rule_version: "provider-evidence-v2",
-    explanation: explainIpAssessment(data, [], { queriedAt }),
+    conclusion: explanation.summary,
+    rule_version: "provider-evidence-v3",
+    explanation,
   };
 }
 
@@ -91,6 +93,12 @@ const fieldKeys = [
   "abuse",
 ] as const;
 type AssessmentField = (typeof fieldKeys)[number];
+export type AssessmentConclusion =
+  | "review_records"
+  | "review_conflicts"
+  | "incomplete_evidence"
+  | "anonymity_reported"
+  | "no_records_reported";
 const booleanFields = new Set<string>([
   "vpn_exit",
   "proxy",
@@ -150,6 +158,7 @@ export function explainIpAssessment(
       queried_at: options.queriedAt,
     },
   ];
+  const unavailableSources: string[] = [];
   // Only the existing integrations can corroborate fields; duplicates and
   // unsupported claims from a geography-only database never gain a vote.
   for (const id of ["ipinfo-lite", "tor-project"]) {
@@ -164,10 +173,14 @@ export function explainIpAssessment(
       (id === "tor-project" &&
         source.fields.tor_exit === true &&
         (!observed || now - Date.parse(observed) > maximumAge));
+    const state =
+      source.state === "available" && expired ? "stale" : source.state;
+    if (["stale", "unavailable", "sample", "no_record"].includes(state))
+      unavailableSources.push(id);
     sources.push({
       ...source,
       name: sourceNames[id],
-      state: source.state === "available" && expired ? "stale" : source.state,
+      state,
       capabilities: source.capabilities.filter((field) =>
         (id === "tor-project"
           ? ["tor_exit"]
@@ -281,31 +294,36 @@ export function explainIpAssessment(
   );
   const bogon = typeof data.is_bogon === "boolean" ? data.is_bogon : null;
   const needsReview = abuseReported || threats.length > 0 || bogon === true;
-  const lowReference =
-    referenceBand(data.trust_score) === "poor" &&
-    data.is_public_service !== true;
-  const summary = needsReview
+  const incomplete =
+    unknown.length > 0 ||
+    bogon === null ||
+    typeof data.is_crawler !== "boolean" ||
+    unavailableSources.length > 0;
+  const findings: AssessmentConclusion[] = [];
+  if (needsReview) findings.push("review_records");
+  if (conflicts.length || typeConflict) findings.push("review_conflicts");
+  if (incomplete) findings.push("incomplete_evidence");
+  if (detectedAnonymity.length) findings.push("anonymity_reported");
+  const summary: AssessmentConclusion = needsReview
     ? "review_records"
     : conflicts.length || typeConflict
       ? "review_conflicts"
-      : detectedAnonymity.length
-        ? "anonymity_reported"
-        : lowReference
-          ? "low_reference"
-          : anonymityKeys.some((key) => fields[key].state === "unknown") ||
-              fields.abuse.state === "unknown" ||
-              bogon === null
-            ? "incomplete_evidence"
-            : "no_records_reported";
+      : incomplete
+        ? "incomplete_evidence"
+        : detectedAnonymity.length
+          ? "anonymity_reported"
+          : "no_records_reported";
   return {
-    rule_version: "evidence-explanation-v1",
+    rule_version: "evidence-explanation-v2",
     summary,
+    findings,
     // This is field availability, never a confidence or safety percentage.
     coverage: {
       available: fieldKeys.length - unknown.length,
       total: fieldKeys.length,
       unknown,
       conflicts,
+      unavailable_sources: unavailableSources,
       independence: "not_verified",
     },
     network: { flags: network, type_conflict: typeConflict },

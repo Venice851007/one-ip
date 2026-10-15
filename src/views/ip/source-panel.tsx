@@ -85,7 +85,15 @@ export function SourceEvidencePanel({ data }: { data: CoffeeLookup }) {
   });
   return (
     <>
-      <IpAssessmentPanel assessment={assessment} loading={query.isFetching} />
+      <IpAssessmentPanel
+        assessment={assessment}
+        loading={query.isFetching}
+        referenceScore={
+          data.sourceState === "unavailable"
+            ? undefined
+            : data.coffee.trust_score
+        }
+      />
       <ToolCard title={t("免费来源核验")}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Badge variant="secondary">

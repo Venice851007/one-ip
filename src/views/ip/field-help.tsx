@@ -95,7 +95,7 @@ const definitions = new Map([
     ),
   ],
   [
-    t("评估置信度"),
+    t("来源评估置信度"),
     t(
       "数据源对其访问评估的置信程度，不是服务可用率，也不是成功访问 AI 平台的概率。",
     ),
@@ -109,7 +109,7 @@ const definitions = new Map([
   [
     t("IP 信誉分"),
     t(
-      "0–100 的综合信誉指标，越高表示数据源评估的风险越低。该分数不能保证网站可用，也不能代表任何 AI 平台的官方判定。",
+      "Net.Coffee 返回的原始数值，本站未校准其风险含义，不据此评定安全等级。请结合风险记录、来源分歧和资料缺失判断。",
     ),
   ],
 ]);
@@ -180,7 +180,7 @@ export function IpFacts({ rows }: { rows: [string, ReactNode][] }) {
     t("滥用标记"),
     t("Reddit 限制"),
     t("滥用等级"),
-    t("评估置信度"),
+    t("来源评估置信度"),
   ]);
   const compact = new Set<string>();
   const fits = ([label, value]: [string, ReactNode]) =>

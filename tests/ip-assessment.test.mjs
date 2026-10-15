@@ -141,7 +141,8 @@ test("provider outage removes its cached records while retaining a current Tor r
   assert.equal(result.fields.abuse.state, "unknown");
   assert.equal(result.fields.tor_exit.state, "detected");
   assert.equal(result.fields.tor_exit.support, "single");
-  assert.equal(result.summary, "anonymity_reported");
+  assert.equal(result.summary, "incomplete_evidence");
+  assert.ok(result.findings.includes("anonymity_reported"));
   assert.ok(
     Object.values(result.network.flags).every((value) => value === null),
   );
@@ -161,10 +162,11 @@ test("missing and malformed fields stay unknown instead of producing clean resul
     unknown: ["country_code", "asn", "vpn_exit", "proxy", "tor_exit", "abuse"],
     conflicts: [],
     independence: "not_verified",
+    unavailable_sources: [],
   });
 });
 
-test("informational labels are excluded, low scores remain attributable and public services are exempt from low-score alerts", () => {
+test("informational labels and provider scores do not determine the site conclusion", () => {
   assert.equal(
     explain({
       ...base,
@@ -172,7 +174,16 @@ test("informational labels are excluded, low scores remain attributable and publ
     }).summary,
     "no_records_reported",
   );
-  assert.equal(explain({ ...base, trust_score: 10 }).summary, "low_reference");
+  for (const trust_score of [0, 10, 44, 50, 75, 90, 100]) {
+    assert.equal(
+      explain({ ...base, trust_score }).summary,
+      "no_records_reported",
+    );
+    assert.equal(
+      explain({ ...base, trust_score, is_abuser: true }).summary,
+      "review_records",
+    );
+  }
   assert.equal(
     explain({ ...base, trust_score: 10, is_public_service: true }).summary,
     "no_records_reported",
@@ -180,4 +191,44 @@ test("informational labels are excluded, low scores remain attributable and publ
   const apiAssessment = assessIpRecord({ ...base, is_abuser: true });
   assert.ok(apiAssessment.states.includes("abuse_record"));
   assert.equal(apiAssessment.explanation.summary, "review_records");
+});
+
+test("a stale corroborating source prevents a complete verdict even when the primary returns all negatives", () => {
+  const result = explain(base, [tor(false, { state: "stale" })]);
+  assert.equal(result.fields.tor_exit.state, "not_detected");
+  assert.equal(result.summary, "incomplete_evidence");
+  assert.deepEqual(result.coverage.unavailable_sources, ["tor-project"]);
+  const unavailable = explain(base, [tor(false, { state: "unavailable" })]);
+  assert.equal(unavailable.summary, "incomplete_evidence");
+});
+
+test("missing identity, crawler or address classification data stays insufficient despite a perfect provider score", () => {
+  for (const key of ["countryCode", "asn", "is_crawler", "is_bogon"]) {
+    const result = explain({ ...base, [key]: undefined });
+    assert.equal(result.summary, "incomplete_evidence", key);
+  }
+});
+
+test("risk and disagreements take priority while retaining incomplete and anonymous findings", () => {
+  const conflict = explain({ ...base, is_abuser: undefined }, [tor(true)]);
+  assert.equal(conflict.summary, "review_conflicts");
+  assert.deepEqual(conflict.findings, [
+    "review_conflicts",
+    "incomplete_evidence",
+    "anonymity_reported",
+  ]);
+  const risk = explain({ ...base, is_abuser: true, is_proxy: undefined }, [
+    tor(true),
+  ]);
+  assert.equal(risk.summary, "review_records");
+  assert.deepEqual(risk.findings, [
+    "review_records",
+    "review_conflicts",
+    "incomplete_evidence",
+    "anonymity_reported",
+  ]);
+  assert.equal(
+    assessIpRecord({ ...base, is_abuser: true }).conclusion,
+    "review_records",
+  );
 });

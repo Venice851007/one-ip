@@ -223,14 +223,12 @@ export function ipProfileFields(
   fields[1].special = ["education", "government", "banking"].includes(
     companyKey,
   );
-  fields[2].tone = registration === "same" ? "success" : "info";
+  fields[2].tone = "info";
   fields[3].tone =
     profile.risk?.severity === "danger"
       ? "danger"
       : profile.risk
         ? "warning"
-        : profile.checks[3].passed
-          ? "success"
-          : "info";
+        : "info";
   return fields;
 }

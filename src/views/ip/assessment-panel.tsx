@@ -2,6 +2,7 @@ import { ToolCard } from "@/components/toolkit";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/i18n";
 import type { explainIpAssessment } from "@/lib/ip-assessment";
+import { AssessmentVerdict, ProviderReference } from "./assessment-verdict";
 
 type Explanation = ReturnType<typeof explainIpAssessment>;
 const fieldNames = {
@@ -11,14 +12,6 @@ const fieldNames = {
   proxy: t("来源代理标记"),
   tor_exit: t("Tor 出口"),
   abuse: t("滥用记录"),
-};
-const summaries = {
-  review_records: t("来源报告了待核实记录"),
-  review_conflicts: t("来源或类型存在分歧"),
-  anonymity_reported: t("来源报告了匿名用途"),
-  low_reference: t("来源信誉分偏低"),
-  incomplete_evidence: t("评估证据不完整"),
-  no_records_reported: t("当前来源未报告相关风险记录"),
 };
 const fieldStates = {
   conflict: t("来源分歧"),
@@ -45,25 +38,20 @@ const time = (value: string | null) =>
 export function IpAssessmentPanel({
   assessment,
   loading = false,
+  referenceScore,
 }: {
   assessment: Explanation;
   loading?: boolean;
+  referenceScore?: number;
 }) {
   const networkTags = Object.entries(assessment.network.flags)
     .filter(([, value]) => value === true)
     .map(([key]) => networkLabels[key as keyof typeof networkLabels]);
-  const warning = [
-    "review_records",
-    "review_conflicts",
-    "low_reference",
-  ].includes(assessment.summary);
   return (
-    <ToolCard title={t("IP 评估依据")}>
+    <ToolCard title={t("IP 风险判断")}>
       <div aria-busy={loading} className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={warning ? "warning" : "secondary"}>
-            {summaries[assessment.summary as keyof typeof summaries]}
-          </Badge>
+          <AssessmentVerdict assessment={assessment} prominent />
           {loading && (
             <span className="text-xs text-muted-foreground">
               {t("查询中…")}
@@ -81,6 +69,22 @@ export function IpAssessmentPanel({
             "保留 Net.Coffee 原始信誉分，按证据解释网络用途与风险记录；本页不另算综合安全分。",
           )}
         </p>
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "滥用、VPN 和代理仍仅由 Net.Coffee 提供，尚未完成独立多源信誉核验。",
+          )}
+        </p>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">{t("查看来源原始分")}</summary>
+          <p className="mt-2">
+            <ProviderReference value={referenceScore} />
+          </p>
+          <p className="mt-1">
+            {t(
+              "该数值未经本站校准，不用来评定安全等级，也不代表风险发生概率。",
+            )}
+          </p>
+        </details>
         <div className="grid gap-3 sm:grid-cols-2">
           <section className="rounded-xl border p-3">
             <h3 className="mb-2 text-sm font-medium">{t("网络属性")}</h3>
@@ -193,7 +197,7 @@ export function IpAssessmentPanel({
           </p>
           <p className="mt-1">
             {t(
-              "滥用或异常记录优先提示核实；来源分歧、匿名用途、来源低分与资料缺失分别说明。",
+              "滥用或异常记录优先提示核实；其次是来源分歧、证据不足与匿名用途。来源原分不改变本站结论。",
             )}
           </p>
           <p className="mt-1">

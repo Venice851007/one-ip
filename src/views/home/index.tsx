@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { ConnectivityTile, homeTargets } from "@/components/connectivity";
 import { CountryFlag } from "@/components/country-flag";
-import { NumberTicker } from "@/components/number-ticker";
 import { SiteLogo } from "@/components/site-logo";
 import {
   ActionButton,
@@ -19,10 +18,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSortAnimation } from "@/hooks/use-sort-animation";
 import { t } from "@/i18n";
 import { toolGroups } from "@/layout/routes";
+import { explainIpAssessment } from "@/lib/ip-assessment";
 import { companyTypeColors } from "@/lib/ip-badge-colors";
-import { ipScoreColor } from "@/lib/ip-score";
 import { BrowserSummary } from "@/views/browser/summary";
 import { lookupIp } from "@/views/ip/api";
+import {
+  AssessmentVerdict,
+  ProviderReference,
+} from "@/views/ip/assessment-verdict";
 import { testConnectivity, type ProbeResult } from "@/views/link/api";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -198,12 +201,9 @@ export function HomePage() {
           const company = classification?.isSuccess
             ? classification.data.coffee
             : undefined;
-          const score = company?.trust_score;
-          const hasScore =
-            typeof score === "number" &&
-            Number.isFinite(score) &&
-            score >= 0 &&
-            score <= 100;
+          const assessment = company
+            ? explainIpAssessment({ ...company })
+            : undefined;
           const typeLabels = company
             ? [
                 company.company_type
@@ -290,18 +290,13 @@ export function HomePage() {
                       </span>
                     )}
                   </div>
-                  {hasScore && (
-                    <div
-                      className="ip-reputation-badge shrink-0"
-                      style={{ color: ipScoreColor(score) }}
-                    >
-                      <span>{t("Net.Coffee 参考信誉")}</span>
-                      <strong>
-                        <NumberTicker value={score} />
-                      </strong>
-                    </div>
-                  )}
                 </div>
+                {assessment && (
+                  <div className="mt-2 space-y-1">
+                    <AssessmentVerdict assessment={assessment} />
+                    <ProviderReference value={company?.trust_score} />
+                  </div>
+                )}
                 <div className="primary-ip-meta text-sm text-muted-foreground">
                   {loading ? (
                     <Pending>{t("正在查询归属信息…")}</Pending>

@@ -72,6 +72,8 @@ export async function ipHealth(request, env) {
         scale: [0, 100],
         direction: "higher-is-better",
         band: referenceBand(score),
+        band_scope: "legacy_numeric_bucket_only",
+        calibration: "unverified",
         updated_at: null,
       },
       assessment: assessIpRecord(data, result.checked_at),

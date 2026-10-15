@@ -128,7 +128,10 @@ test("v2 separates reference score bands from abuse evidence while legacy stays 
   assert.equal(data.reputation.source, "Net.Coffee");
   assert.equal(data.reputation.value, 100);
   assert.equal(data.reputation.updated_at, null);
+  assert.equal(data.reputation.calibration, "unverified");
+  assert.equal(data.reputation.band_scope, "legacy_numeric_bucket_only");
   assert.ok(data.assessment.states.includes("abuse_record"));
+  assert.equal(data.assessment.conclusion, "review_records");
   assert.equal(data.assessment.explanation.summary, "review_records");
   assert.equal(data.assessment.explanation.asn.reputation, "not_assessed");
   assert.equal(data.assessment.explanation.fields.abuse.support, "single");

@@ -7,11 +7,10 @@ import { IpText, ToolCard, DataTable, Pending } from "@/components/toolkit";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { t } from "@/i18n";
-import { ipScoreColor } from "@/lib/ip-score";
 import type { Geo } from "@/lib/types";
 import { hideIpAtom } from "@/store/privacy";
 import { useAtom } from "jotai";
-import { Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { coffeeThreatLabels, type CoffeeLookup } from "./coffee";
 import { IpFacts } from "./field-help";
 import { IpLatency } from "./latency";
@@ -22,11 +21,6 @@ import { useIpLatency } from "./use-ip-latency";
 
 const IpProfileGraph = lazy(() => import("./profile-graph"));
 const IpRouteGraph = lazy(() => import("./route-graph"));
-const IpReputationScale = lazy(() =>
-  import("./profile-graph").then((module) => ({
-    default: module.IpReputationScale,
-  })),
-);
 
 export function IpDetails({
   data,
@@ -55,7 +49,7 @@ export function IpDetails({
       ? chip(t("未知"))
       : value
         ? chip(t("已检测到"), "bad")
-        : chip(t("未检测到"), "good");
+        : chip(t("未检测到"));
   const number = (value?: number) =>
     typeof value === "number" && Number.isFinite(value) ? (
       <NumberTicker
@@ -67,13 +61,6 @@ export function IpDetails({
     );
   const seen = (value?: number) =>
     value ? new Date(value * 1000).toLocaleDateString() : "—";
-  const score =
-    typeof d.trust_score === "number" &&
-    Number.isFinite(d.trust_score) &&
-    d.trust_score >= 0 &&
-    d.trust_score <= 100
-      ? d.trust_score
-      : null;
   const rpki: Record<string, string> = {
     valid: t("有效"),
     invalid: t("无效"),
@@ -118,46 +105,10 @@ export function IpDetails({
               </span>
             </div>
           </div>
-          <div
-            className="ip-reputation-badge"
-            style={{
-              color: profile.risk
-                ? "var(--muted-foreground)"
-                : ipScoreColor(score),
-            }}
-          >
-            <span>{t("Net.Coffee 参考信誉")}</span>
-            <strong>
-              {score == null ? "—" : <NumberTicker value={score} />}
-            </strong>
-          </div>
         </div>
-        <Suspense fallback={<div className="ip-reputation-scale" />}>
-          <IpReputationScale profile={profile} />
-        </Suspense>
         {search}
         {recent}
       </div>
-      {profile.risk && (
-        <div
-          className="ip-risk-notice"
-          data-severity={profile.risk.severity}
-          role="alert"
-        >
-          <ShieldAlert size={20} aria-hidden="true" />
-          <div>
-            <strong>{profile.risk.title}</strong>
-            {!!profile.risk.flags.length && (
-              <ul>
-                {profile.risk.flags.map((flag) => (
-                  <li key={flag}>{flag}</li>
-                ))}
-              </ul>
-            )}
-            <p>{profile.risk.description}</p>
-          </div>
-        </div>
-      )}
       <SourceEvidencePanel data={data} />
       <Suspense
         fallback={
@@ -226,7 +177,7 @@ export function IpDetails({
             ]}
           />
         </ToolCard>
-        <ToolCard title={t("风险深度检测")}>
+        <ToolCard title={t("Net.Coffee 风险记录")}>
           <IpFacts
             rows={[
               ["VPN", riskFlag(d.is_vpn)],
@@ -242,7 +193,7 @@ export function IpDetails({
           />
         </ToolCard>
       </div>
-      <ToolCard title={t("IP 情报（威胁指标）")}>
+      <ToolCard title={t("Net.Coffee 威胁情报（原始记录）")}>
         <IpFacts
           rows={[
             [
@@ -250,10 +201,10 @@ export function IpDetails({
               Array.isArray(d.intelligence?.threats)
                 ? threats.length
                   ? chip(threats.join(" · "), "bad")
-                  : chip(t("未发现明显威胁"), "good")
+                  : chip(t("本来源未返回威胁标签"))
                 : chip(t("未知")),
             ],
-            [t("滥用等级"), d.intelligence?.abuser_level],
+            [t("来源滥用等级"), d.intelligence?.abuser_level],
             [
               t("HTTP 蜜罐黑名单"),
               d.intelligence?.rep_threat == null
@@ -268,9 +219,9 @@ export function IpDetails({
                   ? d.vpn_trace
                   : JSON.stringify(d.vpn_trace),
             ],
-            [t("访问评估"), d.ai_verdict?.label],
+            [t("来源访问评估"), d.ai_verdict?.label],
             [
-              t("评估置信度"),
+              t("来源评估置信度"),
               d.ai_verdict?.confidence == null ? (
                 "—"
               ) : (

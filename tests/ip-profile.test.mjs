@@ -64,12 +64,12 @@ test("profile explanations highlight actual categories and keep unknown flags di
 });
 
 test("residential and registration facts never produce a preferred tier", () => {
-  assert.equal(ipProfile(residential).grade, "高信誉住宅");
+  assert.equal(ipProfile(residential).grade, "暂未发现相关记录");
   assert.equal(ipProfile(residential).level, null);
   assert.equal(
     ipProfile(residential).checks.filter((check) => check.passed === true)
       .length,
-    5,
+    4,
   );
   for (const changes of [
     { is_datacenter: true },
@@ -102,8 +102,8 @@ test("evidence separates missing fields, type mismatches and real score bands", 
   assert.equal(hosting.level, null);
   assert.equal(hosting.checks[0].passed, false);
   assert.equal(hosting.checks[1].passed, false);
-  assert.equal(hosting.checks.filter((check) => check.passed).length, 3);
-  for (const [score, band] of [
+  assert.equal(hosting.checks.filter((check) => check.passed).length, 2);
+  for (const [score] of [
     [0, 0],
     [44, 0],
     [45, 1],
@@ -115,7 +115,7 @@ test("evidence separates missing fields, type mismatches and real score bands", 
   ])
     assert.equal(
       ipProfile({ ...residential, trust_score: score }).scoreBand,
-      band,
+      null,
     );
 });
 
@@ -139,10 +139,7 @@ test("risk notices remain visible at a perfect score and distinguish network fla
       "notice",
     );
   }
-  assert.equal(
-    ipProfile({ ...residential, trust_score: 44 }).risk.severity,
-    "danger",
-  );
+  assert.equal(ipProfile({ ...residential, trust_score: 44 }).risk, null);
   assert.equal(
     ipProfile({ ...residential, trust_score: 41, is_public_service: true })
       .risk,
@@ -241,28 +238,26 @@ test("tier boundaries and missing evidence do not imply top configuration", () =
   }
 });
 
-test("hosting tiers follow score boundaries without ranking company sectors", () => {
-  const hosting = {
-    ...residential,
-    isResidential: false,
-    is_datacenter: true,
-    company_type: "hosting",
-  };
-  for (const [score, expected] of [
-    [0, "信誉偏低"],
-    [44, "信誉偏低"],
-    [45, "信誉一般"],
-    [74, "信誉一般"],
-    [75, "信誉良好"],
-    [89, "信誉良好"],
-    [90, "高信誉机房"],
-    [100, "高信誉机房"],
-  ]) {
-    assert.equal(ipProfile({ ...hosting, trust_score: score }).grade, expected);
+test("source scores never assign optimistic grades or a passed safety check", () => {
+  for (const trust_score of [0, 44, 45, 74, 75, 89, 90, 100]) {
+    for (const changes of [
+      {},
+      { isResidential: false, is_datacenter: true, company_type: "hosting" },
+      { is_mobile: true },
+    ]) {
+      const profile = ipProfile({ ...residential, ...changes, trust_score });
+      assert.equal(profile.grade, "暂未发现相关记录");
+      assert.equal(profile.tone, "neutral");
+      assert.equal(profile.scoreBand, null);
+      assert.equal(profile.score, trust_score);
+      assert.equal(profile.checks[4].passed, null);
+      assert.equal(profile.risk, null);
+    }
   }
-  assert.equal(
-    ipProfile({ ...hosting, company_type: "government" }).grade,
-    "高信誉机房",
-  );
-  assert.equal(ipProfile({ ...hosting, is_vpn: true }).grade, "存在网络标记");
+});
+
+test("a negative single-source finding or matching registration does not receive a success color", () => {
+  const fields = ipProfileFields(residential, ipProfile(residential));
+  assert.equal(fields[2].tone, "info");
+  assert.equal(fields[3].tone, "info");
 });
