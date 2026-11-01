@@ -18,6 +18,7 @@ export const toolGroups = {
     { path: "/network/subdomains", label: t("子域名查询") },
     { path: "/network/whois", label: "WHOIS" },
     { path: "/network/ping", label: t("全球 Ping") },
+    { path: "/network/cidr", label: t("子网计算") },
   ],
   browser: [
     { path: "/browser/environment", label: t("环境信息") },

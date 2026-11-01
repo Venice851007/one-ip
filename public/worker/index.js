@@ -1,6 +1,7 @@
 import { getAiStatus } from "./ai-status.js";
 import { challengeConfig, verifyChallenge } from "./challenges.js";
 import { getCloudStatus } from "./cloud-status.js";
+import { coffeeReputation } from "./geo-sources.js";
 import { cfGeo, geoIp, secondaryGeo } from "./geo.js";
 import { HttpError, inputJson, json, publicIp } from "./http.js";
 import { siteIcon } from "./icons.js";
@@ -10,6 +11,7 @@ import { ipType } from "./ip-type.js";
 import { mapConfig } from "./map.js";
 import { adsTxt, isPagePath, renderPage } from "./pages.js";
 import { startPing, pingResult, pingNodes } from "./ping.js";
+import { plainIpResponse } from "./plain.js";
 import { normalizeStatus } from "./service-status.js";
 import services from "./services.json";
 import { lookupSubdomains } from "./subdomains.js";
@@ -24,6 +26,8 @@ export default {
       return new Response("Not found", { status: 404 });
     if (!url.pathname.startsWith("/api/")) {
       if (url.pathname === "/ads.txt") return adsTxt(env);
+      const plain = plainIpResponse(request, url);
+      if (plain) return plain;
       const page = isPagePath(url, request);
       let assetRequest = request;
       if (page) {
@@ -84,20 +88,29 @@ export default {
           );
         return json(data);
       }
+      if (path.startsWith("/ip/reputation/"))
+        return json(
+          await coffeeReputation(publicIp(decodeURIComponent(path.slice(15)))),
+        );
       if (path === "/ip/health") return await ipHealth(request, env);
       if (path.startsWith("/ip-type/"))
         return await ipType(decodeURIComponent(path.slice(9)), url.origin);
       if (path.startsWith("/geoip/"))
-        return json(await geoIp(publicIp(decodeURIComponent(path.slice(7)))));
+        return json(
+          await geoIp(publicIp(decodeURIComponent(path.slice(7))), env),
+        );
       if (path.startsWith("/ip/network/"))
         return json(
           await ipNetwork(publicIp(decodeURIComponent(path.slice(12)))),
         );
       if (path.startsWith("/ip/lookup/")) {
         const ip = publicIp(decodeURIComponent(path.slice(11)));
-        const [primary, secondary, registration] = await Promise.allSettled([
-          geoIp(ip),
-          secondaryGeo(ip),
+        const primary = await geoIp(ip, env).then(
+          (value) => ({ status: "fulfilled", value }),
+          (reason) => ({ status: "rejected", reason }),
+        );
+        const [secondary, registration] = await Promise.allSettled([
+          secondaryGeo(ip, env, primary.value?.source),
           lookupRegistration(ip),
         ]);
         const sources = [primary, secondary].flatMap((r) =>

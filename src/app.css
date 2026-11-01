@@ -4618,3 +4618,18 @@ body {
   display: flex;
   gap: 8px;
 }
+
+/* CLS: reserve space for async IP data on the home cards. */
+.home-primary-card .primary-ip-meta {
+  min-height: 2.6rem;
+}
+.home-primary-card .ip-value {
+  min-height: 1.6rem;
+}
+.home-connectivity-card .ping-grid {
+  min-height: 6rem;
+}
+/* CLS: keep the footer below the fold while lazy route chunks load. */
+.app-main {
+  min-height: calc(100vh - 8rem);
+}

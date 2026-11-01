@@ -34,6 +34,7 @@ const CdnPage = lazy(() => import("@/views/cdn"));
 const DnsExitPage = lazy(() => import("@/views/dns-exit"));
 const ApiUsagePage = lazy(() => import("@/views/api-usage"));
 const PolicyPage = lazy(() => import("@/views/policy"));
+const CidrPage = lazy(() => import("@/views/cidr"));
 function Redirect({ to }: { to: string }) {
   const { search, hash } = useLocation();
   const { ip } = useParams();
@@ -72,6 +73,7 @@ export function App() {
           <Route path="ping" element={<PingPage />} />
           <Route path="cdn" element={<CdnPage />} />
           <Route path="dns" element={<DnsExitPage />} />
+          <Route path="cidr" element={<CidrPage />} />
         </Route>
         <Route path="browser" element={<ToolLayout group="browser" />}>
           <Route

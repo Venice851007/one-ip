@@ -2,12 +2,10 @@ import { lazy, Suspense, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { CookieConsent } from "@/components/ads/cookie-consent";
-import { BuildInfo } from "@/components/build-info";
 import { HomePageSkeleton } from "@/components/home-page-skeleton";
 import { LanguageSelect } from "@/components/language-select";
 import { AppUpdateChecker } from "@/components/providers/app-update-checker";
 import { SeoSync } from "@/components/seo-sync";
-import { ShareSite } from "@/components/share-site";
 import { ThemeToggleButton } from "@/components/theme/theme-toggle-button";
 import { Pending } from "@/components/toolkit";
 import { AnimatedSegmentedTabs } from "@/components/ui/animated-segmented-tabs";
@@ -22,6 +20,13 @@ import { Tabs } from "radix-ui";
 import { Toaster } from "sonner";
 import { RouteErrorBoundary } from "./route-error-boundary";
 import { activeNavigationRoute, navigationRoutes } from "./routes";
+
+const ShareSite = lazy(() =>
+  import("@/components/share-site").then((m) => ({ default: m.ShareSite })),
+);
+const BuildInfo = lazy(() =>
+  import("@/components/build-info").then((m) => ({ default: m.BuildInfo })),
+);
 
 const MobileNavGlass = lazy(() => import("@/components/mobile-nav-glass"));
 
@@ -94,7 +99,9 @@ export function AppLayout() {
             <img src="/icon.svg" width="24" height="24" alt="" />
           </Link>
           <div className="flex items-center gap-1">
-            <ShareSite />
+            <Suspense fallback={null}>
+              <ShareSite />
+            </Suspense>
             <LanguageSelect />
             <ThemeToggleButton className="size-8 rounded-full text-muted-foreground" />
           </div>
@@ -130,7 +137,9 @@ export function AppLayout() {
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
               <div className="desktop-preferences flex items-center gap-1">
-                <ShareSite />
+                <Suspense fallback={null}>
+                  <ShareSite />
+                </Suspense>
                 <LanguageSelect />
                 <ThemeToggleButton className="size-9 shrink-0 rounded-lg text-muted-foreground" />
               </div>
@@ -138,7 +147,7 @@ export function AppLayout() {
           )}
         >
           <Tabs.Content value={activeRoute} asChild>
-            <main className="outline-none">
+            <main className="app-main outline-none">
               <RouteErrorBoundary key={activeRoute}>
                 <Suspense
                   fallback={
@@ -224,7 +233,9 @@ export function AppLayout() {
         <AppUpdateChecker />
       </aside>
       <CookieConsent />
-      <BuildInfo />
+      <Suspense fallback={null}>
+        <BuildInfo />
+      </Suspense>
       <Toaster richColors theme={resolvedTheme} position="top-right" />
     </>
   );

@@ -1,4 +1,5 @@
-import { HttpError, json, publicIp, upstream } from "./http.js";
+import { geoFallback, coffeeReputation } from "./geo-sources.js";
+import { HttpError, json, publicIp } from "./http.js";
 
 export async function ipHealth(request, env) {
   const url = new URL(request.url);
@@ -15,10 +16,21 @@ export async function ipHealth(request, env) {
       "无法获取真实访客 IP，请指定 ip 参数或部署 Worker 后检测",
     );
   const ip = publicIp(target ?? request.headers.get("CF-Connecting-IP"));
-  const data = await upstream(
-    `https://ip.net.coffee/api/ip/lookup/${encodeURIComponent(ip)}`,
-    { redirect: "manual" },
-  );
+  let data;
+  try {
+    data = await coffeeReputation(ip);
+  } catch {
+    // Reputation provider down: degrade to geo-only data with an unknown score.
+    const geo = await geoFallback(ip, env);
+    data = {
+      ip,
+      country: geo.country,
+      region: geo.region,
+      city: geo.city,
+      isp: geo.isp,
+      asn: geo.asn,
+    };
+  }
   let returnedIp;
   try {
     returnedIp = publicIp(data?.ip);

@@ -21,6 +21,7 @@ import { t } from "@/i18n";
 import { toolGroups } from "@/layout/routes";
 import { companyTypeColors } from "@/lib/ip-badge-colors";
 import { ipScoreColor } from "@/lib/ip-score";
+import type { Geo } from "@/lib/types";
 import { BrowserSummary } from "@/views/browser/summary";
 import { lookupIp } from "@/views/ip/api";
 import { PerfectScoreEffects } from "@/views/ip/perfect-score-effects";
@@ -135,19 +136,24 @@ export function HomePage() {
       },
     ].map((probe) => ({ retry: false, staleTime: 60_000, ...probe })),
   });
-  const cards = probes.flatMap((query, index) => {
+  // Probes still loading keep a placeholder card so results fill a reserved slot
+  // instead of pushing the page down when they arrive (CLS).
+  type ProbeCard = {
+    query: (typeof probes)[number];
+    data: Geo | undefined;
+    version: number;
+    label: string;
+  };
+  const cards = probes.flatMap((query, index): ProbeCard[] => {
+    const label = index === 0 ? t("IPv4 · 国内探测") : t("IPv4 · 外部探测");
+    if (!query.data && query.isPending)
+      return [{ query, data: undefined, version: 4, label }];
     // Only dedicated probes belong in the overview; per-site routes stay in SplitResults.
     if (!query.data || query.data.ip.includes(":")) return [];
     if (index === 1 && query.data?.ip === probes[0].data?.ip) return [];
-    return [
-      {
-        query,
-        data: query.data,
-        version: 4,
-        label: index === 0 ? t("IPv4 · 国内探测") : t("IPv4 · 外部探测"),
-      },
-    ];
+    return [{ query, data: query.data, version: 4, label }];
   });
+
   const ips = [
     ...new Set(cards.flatMap(({ data }) => (data ? [data.ip] : []))),
   ];

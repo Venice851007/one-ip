@@ -1,6 +1,7 @@
 // Route metadata shared by the Worker (server-side <head> injection) and the
 // SPA (client-side updates after navigation). Keep this module free of
 // browser-only APIs so the Worker bundle and Node tests can import it.
+import { blogUrl, pageContent, popularIps } from "./content.ts";
 import { webrtcFaq, whoisFaq, type FaqItem } from "./faq.ts";
 import site from "./site.json" with { type: "json" };
 
@@ -128,6 +129,18 @@ export const seoPages: SeoPage[] = [
       zh: "检测域名解析实际经过的 DNS 出口网络，排查 DNS 泄露。",
       en: "Find the DNS resolvers your lookups actually exit through and check for DNS leaks.",
     },
+  ),
+  page(
+    "/network/cidr",
+    {
+      zh: "IP 子网计算器 - CIDR、子网掩码与可用主机计算",
+      en: "IP subnet calculator - CIDR, subnet mask and host range",
+    },
+    {
+      zh: "在线 IPv4 / IPv6 子网计算器：输入 IP/前缀或子网掩码，计算网络地址、广播地址、通配符掩码、可用主机范围与数量。",
+      en: "Online IPv4 / IPv6 subnet calculator: enter IP/prefix or mask to get network, broadcast, wildcard mask, usable host range and count.",
+    },
+    { priority: "0.8" },
   ),
   page(
     "/browser",
@@ -320,7 +333,8 @@ export function pageMeta(
     } catch {
       value = "";
     }
-    if (looksLikeIp(value)) entry = ipPage;
+    if (looksLikeIp(value))
+      entry = popularIps[value] ? ipPage : { ...ipPage, noindex: true };
   }
   const found = Boolean(entry);
   const title = entry
@@ -421,6 +435,22 @@ export function headHtml(
         },
       }),
     );
+    const crumbs = breadcrumbJsonLd(meta, origin);
+    if (crumbs) tags.push(crumbs);
+    const contentItems = meta.faq?.length ? undefined : contentFaq(meta);
+    if (contentItems?.length)
+      tags.push(
+        jsonLd({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          inLanguage: meta.locale,
+          mainEntity: contentItems.map((item) => ({
+            "@type": "Question",
+            name: item.title,
+            acceptedAnswer: { "@type": "Answer", text: item.text },
+          })),
+        }),
+      );
     if (meta.faq?.length)
       tags.push(
         jsonLd({
@@ -440,20 +470,199 @@ export function headHtml(
 
 export function sitemapXml(origin: string = site.origin) {
   const base = origin.replace(/\/$/, "");
-  const urls = seoPages
-    .filter((item) => item.sitemap && !item.noindex)
-    .map((item) => {
-      const loc = base + (item.path === "/" ? "/" : item.path);
-      return [
-        "  <url>",
-        `    <loc>${loc}</loc>`,
-        `    <xhtml:link rel="alternate" hreflang="zh-CN" href="${loc}" />`,
-        `    <xhtml:link rel="alternate" hreflang="en" href="${loc}?lang=en" />`,
-        `    <xhtml:link rel="alternate" hreflang="x-default" href="${loc}" />`,
-        `    <changefreq>weekly</changefreq>`,
-        `    <priority>${item.priority ?? "0.7"}</priority>`,
-        "  </url>",
-      ].join("\n");
-    });
+  const urls = [
+    ...seoPages.filter((item) => item.sitemap && !item.noindex),
+    ...Object.keys(popularIps).map((ip) => ({
+      path: `/network/ip/${ip}`,
+      priority: "0.6",
+    })),
+  ].map((item) => {
+    const loc = base + (item.path === "/" ? "/" : item.path);
+    return [
+      "  <url>",
+      `    <loc>${loc}</loc>`,
+      `    <xhtml:link rel="alternate" hreflang="zh-CN" href="${loc}" />`,
+      `    <xhtml:link rel="alternate" hreflang="en" href="${loc}?lang=en" />`,
+      `    <xhtml:link rel="alternate" hreflang="x-default" href="${loc}" />`,
+      `    <changefreq>weekly</changefreq>`,
+      `    <priority>${item.priority ?? "0.7"}</priority>`,
+      "  </url>",
+    ].join("\n");
+  });
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join("\n")}\n</urlset>\n`;
+}
+
+const crumbNames: Record<string, Text> = {
+  "/network": { zh: "网络检测", en: "Network checks" },
+  "/browser": { zh: "浏览器检测", en: "Browser checks" },
+  "/ai": { zh: "AI 检测", en: "AI checks" },
+  "/status": { zh: "服务状态", en: "Service status" },
+  "/network/ip": { zh: "IP 地址查询", en: "IP lookup" },
+  "/docs": { zh: "文档", en: "Docs" },
+};
+
+function shortTitle(path: string, key: "zh" | "en") {
+  const known = crumbNames[path];
+  if (known) return known[key];
+  const entry = seoPages.find((item) => item.path === path);
+  if (entry) return entry.title[key].split(" - ")[0];
+  const ip = path.match(/^\/network\/ip\/([^/]+)$/);
+  return ip ? decodeURIComponent(ip[1]) : path;
+}
+
+/** Breadcrumb trail (Home → section → page) for the path. */
+export function breadcrumbs(meta: PageMeta, origin: string = site.origin) {
+  const key = meta.locale === "en" ? "en" : "zh";
+  const base = origin.replace(/\/$/, "");
+  const suffix = meta.locale === "en" ? "?lang=en" : "";
+  const parts = meta.path === "/" ? [] : meta.path.split("/").filter(Boolean);
+  const trail = [{ name: siteName[key], url: `${base}/${suffix}` }];
+  parts.forEach((_, i) => {
+    const path = `/${parts.slice(0, i + 1).join("/")}`;
+    if (path === "/docs") return;
+    trail.push({ name: shortTitle(path, key), url: `${base}${path}${suffix}` });
+  });
+  return trail;
+}
+
+export function breadcrumbJsonLd(meta: PageMeta, origin: string = site.origin) {
+  const trail = breadcrumbs(meta, origin);
+  if (trail.length < 2) return "";
+  return jsonLd({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  });
+}
+
+export type IpSummary = {
+  country?: string;
+  region?: string;
+  city?: string;
+  isp?: string;
+  asn?: number;
+  source?: string;
+};
+
+/**
+ * Crawlable body copy: breadcrumbs, intro, how-to, FAQ, related tools and blog link.
+ * Rendered after #root; #root reserves the viewport so this never shifts layout.
+ */
+export function bodyHtml(
+  meta: PageMeta,
+  origin: string = site.origin,
+  ip?: { value: string; summary?: IpSummary | null },
+) {
+  if (!meta.found) return "";
+  const key = meta.locale === "en" ? "en" : "zh";
+  const en = key === "en";
+  const suffix = en ? "?lang=en" : "";
+  const content = pageContent[meta.path];
+  const block = content?.[key];
+  const e = escapeHtml;
+  const out: string[] = [];
+  const trail = breadcrumbs(meta, origin);
+  if (trail.length > 1)
+    out.push(
+      `<nav aria-label="${en ? "Breadcrumb" : "面包屑"}"><ol>${trail
+        .map((c, i) =>
+          i === trail.length - 1
+            ? `<li aria-current="page">${e(c.name)}</li>`
+            : `<li><a href="${e(c.url)}">${e(c.name)}</a></li>`,
+        )
+        .join("")}</ol></nav>`,
+    );
+  if (ip) {
+    const s = ip.summary;
+    const v = e(ip.value);
+    const where = s
+      ? [s.city, s.region, s.country].filter(Boolean).join(", ")
+      : "";
+    out.push(`<h2>${en ? `IP address ${v}` : `IP 地址 ${v}`}</h2>`);
+    const known = popularIps[ip.value];
+    if (known) out.push(`<p>${e(known[key])}</p>`);
+    if (s && (where || s.isp)) {
+      const rows: [string, string | undefined][] = [
+        [en ? "Location" : "归属地", where || undefined],
+        [en ? "ISP / organisation" : "运营商 / 组织", s.isp],
+        ["ASN", s.asn ? `AS${s.asn}` : undefined],
+        [en ? "Data source" : "数据来源", s.source],
+      ];
+      out.push(
+        `<dl>${rows
+          .filter(([, val]) => val)
+          .map(([k, val]) => `<dt>${e(k)}</dt><dd>${e(String(val))}</dd>`)
+          .join("")}</dl>`,
+      );
+      out.push(
+        `<p>${
+          en
+            ? `${v} is ${s.isp ? `operated by ${e(s.isp)}${s.asn ? ` (AS${s.asn})` : ""} and ` : ""}geolocated to ${e(where || "an unknown location")} according to public IP databases. Open the interactive report above for the reputation score, proxy/VPN/datacenter flags, RDAP registration and a map.`
+            : `根据公开 IP 数据库，${v} ${where ? `位于${e(where)}` : "归属地未知"}${s.isp ? `，由 ${e(s.isp)}${s.asn ? `（AS${s.asn}）` : ""} 运营` : ""}。页面上方的交互报告提供信誉分、代理/VPN/机房风险标记、RDAP 注册信息与地图。`
+        }</p>`,
+      );
+    }
+    const ipBlock = pageContent["/network/ip"][key];
+    out.push(`<p>${e(ipBlock.intro[0])}</p>`);
+  } else if (block) {
+    out.push(`<h2>${e(block.h)}</h2>`);
+    for (const para of block.intro) out.push(`<p>${e(para)}</p>`);
+    if (block.steps?.length)
+      out.push(
+        `<h3>${en ? "How to use" : "使用方法"}</h3><ol>${block.steps.map((x) => `<li>${e(x)}</li>`).join("")}</ol>`,
+      );
+    if (block.faq?.length)
+      out.push(
+        `<h3>${en ? "FAQ" : "常见问题"}</h3>${block.faq
+          .map(([q, a]) => `<h4>${e(q)}</h4><p>${e(a)}</p>`)
+          .join("")}`,
+      );
+  } else {
+    out.push(
+      `<h2>${e(meta.title.split(" - ")[0])}</h2><p>${e(meta.description)}</p>`,
+    );
+  }
+  const base = origin.replace(/\/$/, "");
+  const related =
+    content?.related ??
+    (ip
+      ? [
+          "/network/ip",
+          "/network/whois",
+          "/network/cidr",
+          ...Object.keys(popularIps)
+            .filter((x) => x !== ip.value)
+            .slice(0, 4)
+            .map((x) => `/network/ip/${x}`),
+        ]
+      : [
+          "/network/ip",
+          "/network/dns",
+          "/browser/privacy",
+          "/network/cidr",
+        ].filter((x) => x !== meta.path));
+  out.push(
+    `<h3>${en ? "Related tools" : "相关工具"}</h3><ul>${related
+      .map(
+        (path) =>
+          `<li><a href="${e(base + path + suffix)}">${e(shortTitle(path, key))}</a></li>`,
+      )
+      .join("")}</ul>`,
+  );
+  if (content?.blog || ip)
+    out.push(
+      `<p>${en ? "More networking guides on the blog: " : "更多网络与代理教程见博客："}<a href="${blogUrl}/" rel="noopener">小磊哥の博客</a></p>`,
+    );
+  return `<article id="seo-content" lang="${meta.locale}">${out.join("")}</article>`;
+}
+
+/** FAQ items from pageContent, for FAQPage JSON-LD on pages without a faq.ts entry. */
+export function contentFaq(meta: PageMeta): FaqItem[] | undefined {
+  const block = pageContent[meta.path]?.[meta.locale === "en" ? "en" : "zh"];
+  return block?.faq?.map(([title, text]) => ({ title, text }));
 }

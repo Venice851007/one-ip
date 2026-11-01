@@ -13,13 +13,13 @@ export async function getGeo(
   signal = signal ? AbortSignal.any([signal, timeout]) : timeout;
   const options = () => ({ signal });
   try {
-    const data = await request<Geo>(
-      `https://api.ip.sb/geoip/${encodeURIComponent(ip)}`,
+    // Worker-side multi-source fallback with edge caching (not blocked by ad blockers).
+    const data = await endpoint<Geo>(
+      `/geoip/${encodeURIComponent(ip)}`,
       options(),
     );
-    if (!data.ip || (!data.country && !data.isp))
-      throw new Error(t("归属信息不完整"));
-    return { ...data, ip, source: "ip.sb" };
+    if (!data.country && !data.isp) throw new Error(t("归属信息不完整"));
+    return { ...data, ip };
   } catch {
     signal?.throwIfAborted();
     const data = await request<{

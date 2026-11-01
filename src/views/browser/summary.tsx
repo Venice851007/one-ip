@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { CompactText } from "@/components/compact-text";
 import { Pending } from "@/components/toolkit";
@@ -8,7 +9,37 @@ import { useQuery } from "@tanstack/react-query";
 import { fingerprint } from "./collect";
 
 export function BrowserSummary() {
+  // FingerprintJS is CPU-heavy: run it only once the card is near the viewport
+  // and the main thread is idle, so it does not block first interaction.
+  const ref = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || ready) return;
+    let idle = 0;
+    const start = () => {
+      const ric =
+        window.requestIdleCallback ??
+        ((cb: () => void) => window.setTimeout(cb, 1500));
+      idle = ric(() => setReady(true), { timeout: 4000 } as IdleRequestOptions);
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          start();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      window.cancelIdleCallback?.(idle);
+    };
+  }, [ready]);
   const query = useQuery({
+    enabled: ready,
     queryKey: ["home-browser-fingerprint"],
     queryFn: () => fingerprint(),
     staleTime: Infinity,
@@ -16,7 +47,7 @@ export function BrowserSummary() {
     refetchOnWindowFocus: false,
   });
   return (
-    <Card className="mb-3">
+    <Card className="mb-3" ref={ref}>
       <CardHeader>
         <div className="row-between">
           <CardTitle>{t("浏览器环境")}</CardTitle>
