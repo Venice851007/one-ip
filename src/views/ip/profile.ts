@@ -1,14 +1,9 @@
 import { t } from "@/i18n";
+import { referenceScore } from "@/lib/ip-assessment";
 import { coffeeThreatLabels, type CoffeeIp } from "./coffee.ts";
 
 export function ipProfile(data: CoffeeIp) {
-  const score =
-    typeof data.trust_score === "number" &&
-    Number.isFinite(data.trust_score) &&
-    data.trust_score >= 0 &&
-    data.trust_score <= 100
-      ? data.trust_score
-      : null;
+  const score = referenceScore(data.trust_score);
   const companyTypes: Record<string, string> = {
     isp: t("网络运营商"),
     hosting: t("托管服务商"),
@@ -55,16 +50,8 @@ export function ipProfile(data: CoffeeIp) {
   ).length;
   const threats = coffeeThreatLabels(data, true);
   const clear = !detected.length && !unknownFlags && !threats.length;
-  const preferred =
-    score !== null &&
-    score >= 90 &&
-    data.isResidential === true &&
-    data.is_datacenter === false &&
-    !data.is_mobile &&
-    !data.is_public_service &&
-    companyType === "isp" &&
-    sameCountry === true &&
-    clear;
+  // Network type and registration are facts, never a universal quality ranking.
+  const preferred = false;
   const seriousFlags = [
     ...(data.is_abuser ? [t("滥用标记")] : []),
     ...(data.is_bogon ? ["Bogon"] : []),
@@ -79,44 +66,19 @@ export function ipProfile(data: CoffeeIp) {
           "数据源返回滥用、保留地址或威胁记录。建议核实网络来源，必要时更换出口后重新检测。",
         ),
       }
-    : score !== null && score < 45 && !data.is_public_service
+    : detected.length
       ? {
-          severity: "danger" as const,
-          title: t("信誉分偏低"),
+          severity: "notice" as const,
+          title: t("检测到网络标记"),
           flags: detected,
           description: t(
-            "当前信誉分为 {0}/100，建议结合网络标记核实使用风险。",
-            [score],
+            "代理、VPN、Tor 或爬虫标记可能影响部分网站的访问验证；标记本身不等于恶意行为。",
           ),
         }
-      : detected.length
-        ? {
-            severity: "notice" as const,
-            title: t("检测到网络标记"),
-            flags: detected,
-            description: t(
-              "代理、VPN、Tor 或爬虫标记可能影响部分网站的访问验证；标记本身不等于恶意行为。",
-            ),
-          }
-        : null;
-  // Levels describe the available network profile, not hardware or line speed.
-  const level: "S" | "A" | "B" | "C" | null =
-    data.is_public_service ||
-    conflict ||
-    !clear ||
-    score === null ||
-    type === t("未知") ||
-    !companyType
-      ? null
-      : preferred
-        ? "S"
-        : score >= 90
-          ? "A"
-          : score >= 75
-            ? "B"
-            : "C";
+      : null;
+  const level = null;
   let grade = t("信息不足");
-  let explanation = t("部分类型或风险数据缺失，暂不判断配置档位。");
+  let explanation = t("缺少网络类型或风险记录，证据不足。");
   let tone: "good" | "warn" | "bad" | "neutral" = "neutral";
   if (data.is_public_service) {
     grade = t("公共服务网络");
@@ -135,31 +97,9 @@ export function ipProfile(data: CoffeeIp) {
       [...detected, ...threats].join("、"),
     ]);
     tone = data.is_abuser || data.is_bogon || threats.length ? "bad" : "warn";
-  } else if (preferred) {
-    grade = t("住宅优选");
-    explanation = t(
-      "住宅 IP、ISP 厂商、注册地一致、信誉分 ≥ 90，且六项网络标记均未检出。",
-    );
-    tone = "good";
-  } else if (score !== null && type !== t("未知") && clear) {
-    grade =
-      score >= 90
-        ? data.is_mobile
-          ? t("高信誉网络")
-          : data.is_datacenter
-            ? t("高信誉机房")
-            : data.isResidential
-              ? t("高信誉住宅")
-              : t("高信誉网络")
-        : score >= 75
-          ? t("信誉良好")
-          : score >= 45
-            ? t("信誉一般")
-            : t("信誉偏低");
-    explanation = t(
-      "按数据源信誉分分档：90–100 高信誉，75–89 良好，45–74 一般，0–44 偏低。",
-    );
-    tone = score >= 75 ? "good" : score >= 45 ? "warn" : "bad";
+  } else if (clear) {
+    grade = t("暂未发现相关记录");
+    explanation = t("单一来源未返回相关标记，尚未完成独立多源信誉核验。");
   }
   const checks: {
     label: string;
@@ -214,23 +154,13 @@ export function ipProfile(data: CoffeeIp) {
     {
       label: t("IP 信誉分"),
       value: score === null ? t("未知") : `${score} / 100`,
-      requirement: t("信誉分 ≥ 90"),
-      passed: score === null ? null : score >= 90,
+      requirement: t("仅保留来源原值，不参与本站结论"),
+      passed: null,
     },
   ];
-  const scoreBand =
-    score === null
-      ? null
-      : score >= 90
-        ? 3
-        : score >= 75
-          ? 2
-          : score >= 45
-            ? 1
-            : 0;
   return {
     score,
-    scoreBand,
+    scoreBand: null,
     grade,
     explanation,
     tone,

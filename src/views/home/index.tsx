@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { ConnectivityTile, homeTargets } from "@/components/connectivity";
 import { CountryFlag } from "@/components/country-flag";
-import { NumberTicker } from "@/components/number-ticker";
 import { SiteLogo } from "@/components/site-logo";
 import {
   ActionButton,
@@ -20,17 +19,15 @@ import { useSortAnimation } from "@/hooks/use-sort-animation";
 import { t } from "@/i18n";
 import { toolGroups } from "@/layout/routes";
 import { companyTypeColors } from "@/lib/ip-badge-colors";
-import { ipScoreColor } from "@/lib/ip-score";
 import type { Geo } from "@/lib/types";
 import { BrowserSummary } from "@/views/browser/summary";
 import { lookupIp } from "@/views/ip/api";
-import { PerfectScoreEffects } from "@/views/ip/perfect-score-effects";
+import { HomeIpScore } from "@/views/ip/reference-score";
 import { testConnectivity, type ProbeResult } from "@/views/link/api";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   ArrowRight,
-  Crown,
   Fingerprint,
   Network,
   Search,
@@ -72,6 +69,7 @@ export function HomePage() {
           "split",
           "geoip",
           "lookup-ip-coffee",
+          "free-ip-evidence-v2",
           "connectivity",
           "connectivity-progress",
           "ai-preview",
@@ -168,7 +166,7 @@ export function HomePage() {
   const geoByIp = new Map(ips.map((ip, index) => [ip, geoQueries[index]]));
   const typeQueries = useQueries({
     queries: ips.map((ip) => ({
-      queryKey: ["lookup-ip-coffee", ip],
+      queryKey: ["lookup-ip-coffee", "free-ip-evidence-v2", ip],
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         lookupIp(ip, AbortSignal.any([signal, AbortSignal.timeout(3000)])),
       staleTime: 3600_000,
@@ -206,12 +204,6 @@ export function HomePage() {
           const company = classification?.isSuccess
             ? classification.data.coffee
             : undefined;
-          const score = company?.trust_score;
-          const hasScore =
-            typeof score === "number" &&
-            Number.isFinite(score) &&
-            score >= 0 &&
-            score <= 100;
           const typeLabels = company
             ? [
                 company.company_type
@@ -259,11 +251,7 @@ export function HomePage() {
           const loading =
             pending || Boolean(data && geoByIp.get(data.ip)?.isPending);
           return (
-            <Card
-              key={index}
-              className={`home-primary-card relative${score === 100 ? " ip-dossier-perfect" : ""}`}
-            >
-              {score === 100 && <PerfectScoreEffects />}
+            <Card key={index} className="home-primary-card relative">
               {data && (
                 <Link
                   to={`/network/ip/${encodeURIComponent(data.ip)}`}
@@ -302,27 +290,10 @@ export function HomePage() {
                       </span>
                     )}
                   </div>
-                  {hasScore && (
-                    <div
-                      className={`ip-reputation-badge shrink-0${score === 100 ? " ip-reputation-perfect" : ""}`}
-                      style={{ color: ipScoreColor(score) }}
-                    >
-                      <span
-                        className={
-                          score === 100 ? "ip-perfect-label" : undefined
-                        }
-                      >
-                        {score === 100 && (
-                          <Crown size={13} aria-hidden="true" />
-                        )}
-                        {score === 100 ? t("满分信誉") : t("IP 信誉分")}
-                      </span>
-                      <strong>
-                        <NumberTicker value={score} />
-                      </strong>
-                    </div>
-                  )}
                 </div>
+                {classification?.isSuccess && (
+                  <HomeIpScore data={classification.data} />
+                )}
                 <div className="primary-ip-meta text-sm text-muted-foreground">
                   {loading ? (
                     <Pending>{t("正在查询归属信息…")}</Pending>

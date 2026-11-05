@@ -5,6 +5,7 @@ import { coffeeReputation } from "./geo-sources.js";
 import { cfGeo, geoIp, secondaryGeo } from "./geo.js";
 import { HttpError, inputJson, json, publicIp } from "./http.js";
 import { siteIcon } from "./icons.js";
+import { ipEvidence } from "./ip-evidence.js";
 import { ipHealth } from "./ip-health.js";
 import { ipNetwork } from "./ip-network.js";
 import { ipType } from "./ip-type.js";
@@ -93,6 +94,10 @@ export default {
           await coffeeReputation(publicIp(decodeURIComponent(path.slice(15)))),
         );
       if (path === "/ip/health") return await ipHealth(request, env);
+      if (path.startsWith("/ip/evidence/"))
+        return json(
+          await ipEvidence(decodeURIComponent(path.slice(13)), request, env),
+        );
       if (path.startsWith("/ip-type/"))
         return await ipType(decodeURIComponent(path.slice(9)), url.origin);
       if (path.startsWith("/geoip/"))

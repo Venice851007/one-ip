@@ -114,3 +114,140 @@ test("health reports mismatched, malformed and failed upstream responses", async
   assert.equal(result.status, 429);
   assert.ok(!(await result.text()).includes("private upstream body"));
 });
+
+test("v2 separates reference score bands from abuse evidence while legacy stays compatible", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url) => {
+    if (String(url) === "https://check.torproject.org/exit-addresses") {
+      const stamp = new Date().toISOString().replace("T", " ").slice(0, 19);
+      return new Response(
+        `ExitNode FIXTURE\nPublished ${stamp}\nExitAddress 9.9.9.9 ${stamp}\n`,
+      );
+    }
+    return Response.json({ ip: "1.1.1.1", trust_score: 100, is_abuser: true });
+  });
+  const legacy = await (await worker.fetch(request("?ip=1.1.1.1"), {})).json();
+  assert.equal(legacy.status, "good");
+  const data = await (
+    await worker.fetch(request("?ip=1.1.1.1&version=2"), {})
+  ).json();
+  assert.equal(data.schema_version, 2);
+  assert.equal(data.reputation.source, "Net.Coffee");
+  assert.equal(data.reputation.value, 100);
+  assert.equal(data.reputation.updated_at, null);
+  assert.equal(data.reputation.calibration, "unverified");
+  assert.equal(data.reputation.band_scope, "legacy_numeric_bucket_only");
+  assert.ok(data.assessment.states.includes("abuse_record"));
+  assert.equal(data.assessment.conclusion, "review_records");
+  assert.equal(data.assessment.explanation.summary, "review_records");
+  assert.equal(data.assessment.explanation.asn.reputation, "not_assessed");
+  assert.equal(data.assessment.explanation.fields.abuse.support, "single");
+  assert.equal(
+    data.assessment.explanation.fields.abuse.reports[0].queried_at,
+    data.checked_at,
+  );
+  assert.equal(
+    data.assessment.explanation.fields.abuse.reports[0].observed_at,
+    null,
+  );
+  assert.equal(data.assessment.scoring.value, 20);
+  assert.equal(data.assessment.scoring.original.value, 100);
+  assert.equal(data.assessment.scoring.rule_version, "ip-reference-score-v2");
+  assert.equal(data.status, undefined);
+  assert.equal(
+    (await worker.fetch(request("?ip=1.1.1.1&version=3"), {})).status,
+    400,
+  );
+});
+
+test("v2 uses the same free Tor evidence and scoring formula as the page", async (t) => {
+  const base = {
+    trust_score: 95,
+    countryCode: "US",
+    asn: 13335,
+    is_vpn: false,
+    is_proxy: false,
+    is_tor: false,
+    is_abuser: false,
+    is_bogon: false,
+    is_crawler: false,
+  };
+  t.mock.method(globalThis, "fetch", async (url) => {
+    if (String(url) === "https://check.torproject.org/exit-addresses") {
+      const stamp = new Date().toISOString().replace("T", " ").slice(0, 19);
+      return new Response(
+        `ExitNode FIXTURE\nPublished ${stamp}\nExitAddress 9.9.9.9 ${stamp}\n`,
+      );
+    }
+    return Response.json({
+      ...base,
+      ip: decodeURIComponent(String(url).split("/").at(-1)),
+    });
+  });
+  const clean = await (
+    await worker.fetch(request("?ip=1.1.1.1&version=2"), {})
+  ).json();
+  assert.equal(clean.assessment.scoring.value, 60);
+  assert.equal(clean.reputation.value, 95);
+  const tor = await (
+    await worker.fetch(request("?ip=9.9.9.9&version=2"), {})
+  ).json();
+  assert.equal(tor.assessment.scoring.value, 40);
+  assert.equal(tor.assessment.conclusion, "review_conflicts");
+  assert.ok(
+    tor.assessment.scoring.limits.some((limit) => limit.rule === "tor_exit"),
+  );
+});
+
+test("v2 applies a real ASN snapshot to the matching provider ASN and preserves per-IP abuse separately", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url) => {
+    if (!String(url).startsWith("https://ip.net.coffee/api/ip/lookup/"))
+      return new Response("source unavailable", { status: 503 });
+    const ip = String(url).split("/").at(-1);
+    return Response.json({
+      ip,
+      trust_score: 95,
+      asn: ip === "8.8.8.8" ? 245 : 13335,
+      countryCode: "US",
+      is_vpn: false,
+      is_proxy: false,
+      is_tor: false,
+      is_abuser: false,
+      is_bogon: false,
+      is_crawler: false,
+    });
+  });
+  const stamp = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const drop = [
+    JSON.stringify({ asn: 245 }),
+    JSON.stringify({
+      type: "metadata",
+      timestamp: Math.floor(Date.now() / 1000),
+      records: 1,
+      copyright: "(c) 2026 The Spamhaus Project SLU",
+      terms: "https://www.spamhaus.org/drop/terms/",
+    }),
+  ].join("\n");
+  const env = {
+    ASSETS: {
+      fetch: async (req) =>
+        new Response(
+          new URL(req.url).pathname.endsWith("asndrop.json")
+            ? drop
+            : `ExitNode FIXTURE\nPublished ${stamp}\nExitAddress 9.9.9.9 ${stamp}\n`,
+        ),
+    },
+  };
+  const clean = await (
+    await worker.fetch(request("?ip=1.1.1.1&version=2"), env)
+  ).json();
+  assert.equal(clean.assessment.scoring.value, 79);
+  assert.equal(clean.reputation.value, 95);
+  assert.equal(clean.assessment.explanation.asn.reputation, "not_listed");
+  const listed = await (
+    await worker.fetch(request("?ip=8.8.8.8&version=2"), env)
+  ).json();
+  assert.equal(listed.assessment.scoring.value, 20);
+  assert.equal(listed.assessment.explanation.asn.reputation, "risk_listed");
+  assert.equal(listed.assessment.explanation.abuse.reported, false);
+  assert.equal(listed.assessment.conclusion, "review_records");
+});

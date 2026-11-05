@@ -4,7 +4,8 @@ import {
   AIM_VERSION,
   ACCESS_VERSION,
   accessRating,
-  averageAccessRating,
+  summarizeAccessEvidence,
+  endpointSummary,
   EVIDENCE_TTL,
   canonicalIp,
   sameIp,
@@ -166,7 +167,7 @@ test("opaque responses, refusal, rate limits and unavailable probes stay distinc
   );
   assert.equal(summarizeHttp(Array(8).fill(sample("readable"))), "complete");
 });
-test("browser checks record eight samples and detect route changes after measurement", async () => {
+test("browser checks finish three clean samples and detect route changes", async () => {
   const previous = globalThis.fetch;
   let calls = 0;
   try {
@@ -174,7 +175,7 @@ test("browser checks record eight samples and detect route changes after measure
       assert.equal(options.credentials, "omit");
       calls++;
       const response = new Response(
-        `ip=${calls === 8 ? "8.8.8.8" : "1.1.1.1"}\nloc=US\n`,
+        `ip=${calls === 3 ? "8.8.8.8" : "1.1.1.1"}\nloc=US\n`,
       );
       Object.defineProperty(response, "url", { value: url });
       return response;
@@ -190,8 +191,8 @@ test("browser checks record eight samples and detect route changes after measure
       new AbortController().signal,
       () => {},
     );
-    assert.equal(result.samples.length, 8);
-    assert.equal(calls, 8);
+    assert.equal(result.samples.length, 3);
+    assert.equal(calls, 3);
     assert.equal(evidenceState(result, "1.1.1.1"), "mismatch");
   } finally {
     globalThis.fetch = previous;
@@ -253,7 +254,7 @@ test("access stars describe response speed without claiming unverified IP owners
     [1001, 1],
   ]) {
     const result = accessRating(
-      access(Array(3).fill({ outcome: "opaque", elapsedMs })),
+      access(Array(3).fill({ outcome: "readable", elapsedMs })),
       "1.1.1.1",
       2100,
     );
@@ -325,7 +326,7 @@ test("verified, split, changed and partially observed egress remain distinct", (
       2100,
     );
     assert.equal(rating.scope, scope);
-    assert.equal(rating.stars, 5);
+    assert.equal(rating.stars, null);
   }
   assert.equal(
     accessRating(
@@ -379,12 +380,12 @@ test("batch shares duplicate targets, bounds concurrency and schedules every fir
       new AbortController().signal,
       (_, evidence) => snapshots.push(evidence),
     );
-    assert.ok(maximum <= 8);
+    assert.ok(maximum <= 4);
     assert.deepEqual(
       urls.slice(0, 11),
       targets.map((target) => target.url),
     );
-    assert.equal(urls.length, 88);
+    assert.equal(urls.length, 33);
     assert.ok(
       snapshots.some(
         (value) => value.samples.length === 1 && value.state === "running",
@@ -393,7 +394,7 @@ test("batch shares duplicate targets, bounds concurrency and schedules every fir
     assert.ok(
       Object.values(result).every(
         (value) =>
-          value.samples.length === 8 && value.addressFamily === "unknown",
+          value.samples.length === 3 && value.addressFamily === "unknown",
       ),
     );
     assert.ok(
@@ -458,7 +459,7 @@ test("batch deadline preserves partial evidence and leaves no running targets", 
     AbortSignal.timeout = (ms) => timeout(ms === ACCESS_BUDGET_MS ? 30 : 1000);
     let calls = 0;
     globalThis.fetch = async (_, options) => {
-      if (++calls <= 3) return new Response("ok");
+      if (++calls <= 2) return new Response("ok");
       return new Promise((resolve, reject) => {
         const timer = setTimeout(resolve, 2000);
         options.signal.addEventListener(
@@ -477,66 +478,77 @@ test("batch deadline preserves partial evidence and leaves no running targets", 
       new AbortController().signal,
       () => {},
     );
-    assert.equal(evidence.samples.length, 3);
+    assert.equal(evidence.samples.length, 2);
     assert.equal(evidence.incomplete, true);
     assert.notEqual(evidence.state, "running");
-    assert.equal(accessRating(evidence, "1.1.1.1").stars, 5);
+    assert.equal(accessRating(evidence, "1.1.1.1").stars, null);
   } finally {
     globalThis.fetch = previous;
     AbortSignal.timeout = timeout;
   }
 });
 
-test("scenario averages require at least three platforms and sixty percent coverage", () => {
+test("scenario summary keeps denied, opaque and unavailable targets in the fixed denominator", () => {
   const fast = access(Array(3).fill({ outcome: "readable", elapsedMs: 100 }));
-  const medium = access(Array(3).fill({ outcome: "opaque", elapsedMs: 400 }));
-  const slow = access(Array(3).fill({ outcome: "opaque", elapsedMs: 800 }));
-  assert.deepEqual(averageAccessRating([fast, medium, slow], "1.1.1.1", 2100), {
-    average: 3.3,
-    rated: 3,
-    total: 3,
-    required: 3,
-  });
-  assert.deepEqual(
-    averageAccessRating(
-      [fast, undefined, { ...medium, state: "rate-limited" }],
-      "1.1.1.1",
-      2100,
-    ),
-    { average: null, rated: 1, total: 3, required: 3 },
+  const refused = {
+    ...access([{ outcome: "refused", elapsedMs: 80, status: 403 }]),
+    state: "failed",
+  };
+  const limited = {
+    ...refused,
+    samples: [{ outcome: "rate-limited", elapsedMs: 80, status: 429 }],
+    state: "rate-limited",
+  };
+  const summary = summarizeAccessEvidence(
+    [fast, fast, fast, fast, refused, refused],
+    "1.1.1.1",
+    2100,
   );
-  assert.deepEqual(
-    averageAccessRating(
-      [fast, medium, slow, undefined, undefined],
-      "1.1.1.1",
-      2100,
-    ),
-    { average: 3.3, rated: 3, total: 5, required: 3 },
+  assert.equal(summary.total, 6);
+  assert.equal(summary.readable, 4);
+  assert.equal(summary.denied, 2);
+  assert.equal(summary.unknown, 0);
+  const mixed = summarizeAccessEvidence(
+    [fast, access(), limited, undefined],
+    "1.1.1.1",
+    2100,
   );
-  assert.deepEqual(
-    averageAccessRating(
-      [fast, medium, slow, undefined, undefined, undefined],
-      "1.1.1.1",
-      2100,
-    ),
-    { average: null, rated: 3, total: 6, required: 4 },
+  assert.equal(mixed.total, 4);
+  assert.equal(mixed.readable, 1);
+  assert.equal(mixed.rateLimited, 1);
+  assert.equal(mixed.unknown, 2);
+  assert.equal(summarizeAccessEvidence([fast], "1.1.1.1", 400000).unknown, 1);
+});
+
+test("fast timeouts, opaque responses and incomplete rounds cannot produce speed stars", () => {
+  const fast = access(Array(3).fill({ outcome: "readable", elapsedMs: 100 }));
+  const mixed = {
+    ...fast,
+    state: "partial",
+    samples: [
+      ...fast.samples,
+      { outcome: "unknown", elapsedMs: 3000, error: "timeout" },
+      { outcome: "unknown", elapsedMs: 3000, error: "timeout" },
+    ],
+  };
+  assert.equal(accessRating(mixed, "1.1.1.1", 2100).stars, null);
+  assert.equal(endpointSummary(mixed, "1.1.1.1", 2100).timeouts, 2);
+  assert.equal(endpointSummary(mixed, "1.1.1.1", 2100).total, 5);
+  assert.equal(endpointSummary(mixed, "1.1.1.1", 2100).median, 100);
+  assert.equal(endpointSummary(mixed, "1.1.1.1", 2100).state, "partial");
+  assert.equal(accessRating(access(), "1.1.1.1", 2100).stars, null);
+  assert.equal(endpointSummary(access(), "1.1.1.1", 2100).state, "opaque");
+  assert.equal(
+    endpointSummary({ ...fast, incomplete: true }, "1.1.1.1", 2100).state,
+    "partial",
   );
-  assert.deepEqual(
-    averageAccessRating(
-      [fast, medium, slow, fast, undefined, undefined],
-      "1.1.1.1",
-      2100,
-    ),
-    { average: 3.8, rated: 4, total: 6, required: 4 },
+  assert.equal(
+    accessRating({ ...fast, incomplete: true }, "1.1.1.1", 2100).stars,
+    null,
   );
-  assert.deepEqual(
-    averageAccessRating([fast, medium, slow], "1.1.1.1", 400000),
-    { average: null, rated: 0, total: 3, required: 3 },
+  assert.equal(
+    endpointSummary({ ...fast, state: "cancelled" }, "1.1.1.1", 2100).state,
+    "cancelled",
   );
-  assert.deepEqual(averageAccessRating([], "1.1.1.1", 2100), {
-    average: null,
-    rated: 0,
-    total: 0,
-    required: 3,
-  });
+  assert.equal(endpointSummary(fast, "8.8.8.8", 2100).state, "unverifiable");
 });

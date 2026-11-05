@@ -22,6 +22,7 @@ worker-configuration.d.ts
 !.vscode/extensions.json
 .idea
 .DS_Store
+._*
 *.suo
 *.ntvs*
 *.njsproj
@@ -30,3 +31,9 @@ worker-configuration.d.ts
 
 # Deployment secrets (never commit)
 .secrets.*.env
+
+# Full offline data is imported locally, attributed and deployed as a static asset.
+public/ip-data/*.mmdb
+public/ip-data/*.json
+public/ip-data/*.tmp
+public/ip-data/tor-exits.txt

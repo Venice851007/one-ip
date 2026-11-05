@@ -12,6 +12,7 @@ import { Search, X } from "lucide-react";
 import { lookupIp } from "./api";
 import type { CoffeeLookup } from "./coffee";
 import { IpDetails } from "./details";
+import { SourceEvidencePanel } from "./source-panel";
 
 export default function IpPage() {
   const { ip = "" } = useParams();
@@ -149,6 +150,17 @@ export default function IpPage() {
           {search}
           {recent}
         </div>
+      )}
+      {query.error && !query.data && ip && (
+        <SourceEvidencePanel
+          data={{
+            coffee: { ip },
+            geo: { ip },
+            sources: [],
+            risk: { available: false, source: "Net.Coffee" },
+            sourceState: "unavailable",
+          }}
+        />
       )}
       {query.data && <AdSlot name="ip" />}
     </div>

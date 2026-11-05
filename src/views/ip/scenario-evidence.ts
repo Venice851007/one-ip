@@ -61,28 +61,7 @@ export type Evidence = {
   incomplete?: boolean;
 };
 
-export const ACCESS_VERSION = "http-access-v1";
-export function averageAccessRating(
-  evidence: (Evidence | undefined)[],
-  ip: string,
-  now = Date.now(),
-) {
-  const ratings = evidence
-    .map((value) => accessRating(value, ip, now).stars)
-    .filter((stars): stars is number => stars !== null);
-  return {
-    average:
-      ratings.length >= Math.max(3, Math.ceil(evidence.length * 0.6))
-        ? Math.round(
-            (ratings.reduce((sum, stars) => sum + stars, 0) / ratings.length) *
-              10,
-          ) / 10
-        : null,
-    rated: ratings.length,
-    total: evidence.length,
-    required: Math.max(3, Math.ceil(evidence.length * 0.6)),
-  };
-}
+export const ACCESS_VERSION = "http-access-v2";
 export function accessRating(
   evidence: Evidence | undefined,
   ip: string,
@@ -126,10 +105,9 @@ export function accessRating(
     evidence.ruleVersion !== ACCESS_VERSION ||
     !sameIp(evidence.queriedIp, ip) ||
     stale ||
-    ["cancelled", "failed", "rate-limited"].includes(evidence.state) ||
-    samples.some((sample) =>
-      ["refused", "rate-limited"].includes(sample.outcome),
-    );
+    evidence.state !== "complete" ||
+    evidence.incomplete ||
+    samples.some((sample) => sample.outcome !== "readable");
   return {
     stars:
       blocked || times.length < 3 || median === null
@@ -153,6 +131,84 @@ export function accessRating(
         ? ("different" as const)
         : ("browser" as const),
     stale,
+  };
+}
+export type EndpointState =
+  | "unmeasured"
+  | "running"
+  | "readable"
+  | "opaque"
+  | "denied"
+  | "rate-limited"
+  | "timeout"
+  | "partial"
+  | "unverifiable"
+  | "cancelled"
+  | "expired";
+export function endpointSummary(
+  evidence: Evidence | undefined,
+  ip: string,
+  now = Date.now(),
+) {
+  const measurement = accessRating(evidence, ip, now);
+  const samples = evidence?.samples ?? [];
+  const readable = samples.filter(
+    (sample) =>
+      sample.outcome === "readable" &&
+      Number.isFinite(sample.elapsedMs) &&
+      sample.elapsedMs >= 0,
+  ).length;
+  const opaque = samples.filter((sample) => sample.outcome === "opaque").length;
+  const timeouts = samples.filter(
+    (sample) => sample.error === "timeout",
+  ).length;
+  let state: EndpointState = "unmeasured";
+  if (evidence) {
+    if (measurement.stale) state = "expired";
+    else if (evidence.state === "cancelled") state = "cancelled";
+    else if (
+      evidence.kind !== "http" ||
+      evidence.direction !== "browser-outbound" ||
+      evidence.ruleVersion !== ACCESS_VERSION ||
+      !sameIp(evidence.queriedIp, ip)
+    )
+      state = "unverifiable";
+    else if (evidence.state === "running") state = "running";
+    else if (samples.some((sample) => sample.outcome === "rate-limited"))
+      state = "rate-limited";
+    else if (samples.some((sample) => sample.outcome === "refused"))
+      state = "denied";
+    else if (evidence.incomplete) state = "partial";
+    else if (
+      samples.length >= 3 &&
+      readable === samples.length &&
+      evidence.state === "complete"
+    )
+      state = "readable";
+    else if (samples.length && opaque === samples.length) state = "opaque";
+    else if (samples.length && timeouts === samples.length) state = "timeout";
+    else if (readable || opaque) state = "partial";
+    else state = "unverifiable";
+  }
+  return { ...measurement, state, readable, opaque, timeouts };
+}
+
+export function summarizeAccessEvidence(
+  evidence: (Evidence | undefined)[],
+  ip: string,
+  now = Date.now(),
+) {
+  const states = evidence.map((value) => endpointSummary(value, ip, now).state);
+  const readable = states.filter((state) => state === "readable").length;
+  const denied = states.filter((state) => state === "denied").length;
+  const rateLimited = states.filter((state) => state === "rate-limited").length;
+  return {
+    total: evidence.length,
+    readable,
+    denied,
+    rateLimited,
+    unknown: evidence.length - readable - denied - rateLimited,
+    states,
   };
 }
 export function canonicalIp(value?: string) {

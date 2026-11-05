@@ -47,7 +47,7 @@ async function egress(
   }
 }
 export const ACCESS_BUDGET_MS = 20_000;
-const ACCESS_REQUEST_MS = 1500;
+const ACCESS_REQUEST_MS = 3000;
 
 // A shared queue gives every target its first sample before repeating fast targets.
 export async function measurePlatforms(
@@ -80,7 +80,7 @@ export async function measurePlatforms(
   };
   jobs.forEach(publish);
   await Promise.all(
-    Array.from({ length: Math.min(8, jobs.length) }, async () => {
+    Array.from({ length: Math.min(4, jobs.length) }, async () => {
       while (queue.length && !batchSignal.aborted) {
         const job = queue.shift()!;
         const start = performance.now();
@@ -145,6 +145,10 @@ export async function measurePlatforms(
         job.result.samples.push(sample);
         job.failures = sample.outcome === "unknown" ? job.failures + 1 : 0;
         const finished =
+          (job.result.samples.length >= 3 &&
+            job.result.samples.every((sample) =>
+              ["readable", "opaque"].includes(sample.outcome),
+            )) ||
           job.result.samples.length >= 8 ||
           job.failures >= 2 ||
           sample.outcome === "rate-limited" ||

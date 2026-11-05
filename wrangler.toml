@@ -14,6 +14,8 @@ ADSENSE_SLOT_IP = ""
 ADSENSE_SLOT_TOOL = ""
 ADSENSE_SLOT_FOOTER = ""
 CF_WEB_ANALYTICS_TOKEN = ""
+# Free offline country/ASN data. Import the Lite database before enabling.
+IPINFO_LITE_ENABLED = "false"
 
 [assets]
 directory = "./dist"
@@ -45,6 +47,12 @@ namespace_id = "8517002"
 simple = { limit = 5, period = 60 }
 
 # Local development forwards all page and asset requests to Vite.
+[env.local]
+routes = []
+
+[env.local.vars]
+IPINFO_LITE_ENABLED = "false"
+
 [env.local.assets]
 directory = "./public"
 binding = "ASSETS"

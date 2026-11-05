@@ -16,7 +16,6 @@ import {
 import { t } from "@/i18n";
 import {
   Star,
-  Info,
   BrainCircuit,
   ShoppingBag,
   MessagesSquare,
@@ -31,8 +30,9 @@ import {
   Mail,
 } from "lucide-react";
 import {
-  accessRating,
-  averageAccessRating,
+  endpointSummary,
+  summarizeAccessEvidence,
+  type EndpointState,
   evidenceState,
   qualityRating,
   type Evidence,
@@ -236,27 +236,9 @@ function AccessRows({
         <TableBody>
           {targets.map((target, index) => {
             const evidence = records[target.url];
-            const rating = accessRating(evidence, ip, now);
+            const rating = endpointSummary(evidence, ip, now);
             const running = !evidence || evidence.state === "running";
-            const status = rating.stale
-              ? t("结果已过期")
-              : evidence?.state === "cancelled"
-                ? t("已取消")
-                : evidence?.state === "rate-limited"
-                  ? t("检测限流")
-                  : evidence?.state === "failed"
-                    ? t("请求被拒绝")
-                    : rating.responses
-                      ? rating.fluctuating
-                        ? t("本轮有波动")
-                        : t("已取得响应")
-                      : running
-                        ? t("检测中…")
-                        : evidence?.samples.some(
-                              (sample) => sample.error === "network",
-                            )
-                          ? t("检测受阻")
-                          : t("检测超时");
+            const status = endpointLabels[rating.state];
             const open = expanded === target.url;
             const toggle = () => setExpanded(open ? null : target.url);
             return (
@@ -299,7 +281,7 @@ function AccessRows({
                         return (
                           <span
                             key={sampleIndex}
-                            className={`ping-dot ${!sample ? "" : !good ? "dot-fail" : sample.elapsedMs < 100 ? "dot-good" : sample.elapsedMs < 400 ? "dot-warn" : "dot-slow"}`}
+                            className={`ping-dot ${!sample || sample.outcome === "opaque" ? "" : !good ? "dot-fail" : sample.elapsedMs < 100 ? "dot-good" : sample.elapsedMs < 400 ? "dot-warn" : "dot-slow"}`}
                             title={
                               !sample
                                 ? t("未采样")
@@ -313,6 +295,9 @@ function AccessRows({
                         );
                       })}
                     </div>
+                    <span className="text-xs text-muted-foreground">
+                      {status} · {rating.responses}/{rating.total}
+                    </span>
                   </TableCell>
                   <TableCell>
                     {rating.median !== null &&
@@ -350,14 +335,18 @@ function AccessRows({
                               : t("当前网络实测")}
                         </span>
                         <span>{status}</span>
-                        {rating.stars !== null && (
-                          <ScenarioStars stars={rating.stars} />
-                        )}
+                        <span>
+                          {t("可读 {0} · 不透明 {1} · 超时 {2}", [
+                            rating.readable,
+                            rating.opaque,
+                            rating.timeouts,
+                          ])}
+                        </span>
                       </div>
                       {rating.scope === "different" && (
                         <p>
                           {t(
-                            "出口与查询 IP 不一致，星级仅描述当前网络访问表现。",
+                            "出口与查询 IP 不一致，此处仅描述当前浏览器的端点响应。",
                           )}
                         </p>
                       )}
@@ -393,25 +382,30 @@ const platformCount = new Set(
   scenarioGroups.flatMap((group) => group.targets.map((target) => target.url)),
 ).size;
 
-// Only visible rating/coverage changes rerender a row; raw sample updates stay in the dialog.
+const endpointLabels: Record<EndpointState, string> = {
+  unmeasured: t("未检测"),
+  running: t("检测中…"),
+  readable: t("可读响应"),
+  opaque: t("响应不透明"),
+  denied: t("请求被拒绝"),
+  "rate-limited": t("检测限流"),
+  timeout: t("本轮超时"),
+  partial: t("部分结果"),
+  unverifiable: t("无法核验"),
+  cancelled: t("已取消"),
+  expired: t("结果已过期"),
+};
+
 const ScenarioSummaryRow = memo(function ScenarioSummaryRow({
   group,
-  average,
-  rated,
-  dots,
-  busy,
+  result,
   onSelect,
 }: {
   group: ScenarioGroup;
-  average: number | null;
-  rated: number;
-  dots: string;
-  busy: boolean;
+  result: ReturnType<typeof summarizeAccessEvidence>;
   onSelect: (id: string) => void;
 }) {
   const Icon = scenarioIcons[group.id as keyof typeof scenarioIcons];
-  const states = dots.split(",");
-  const partial = average !== null && rated < group.targets.length;
   return (
     <TableRow
       className="ip-scenario-table-row"
@@ -435,40 +429,29 @@ const ScenarioSummaryRow = memo(function ScenarioSummaryRow({
         <div className="ip-scenario-progress">
           <div
             className="ping-dots"
-            aria-label={t("已评 {0}/{1}", [rated, group.targets.length])}
+            aria-label={t("可读响应 {0}/{1}", [result.readable, result.total])}
           >
             {group.targets.map((target, index) => (
               <span
                 key={target.url}
-                className={`ping-dot ${states[index] === "_" ? "" : states[index] === "!" ? "dot-fail" : "dot-good"}`}
-                title={`${target.name} · ${states[index] === "_" ? t("检测中…") : states[index] === "!" ? t("证据不足") : `${states[index]}/5`}`}
+                className={`ping-dot ${result.states[index] === "readable" ? "dot-good" : ["denied", "rate-limited"].includes(result.states[index]) ? "dot-fail" : ""}`}
+                title={`${target.name} · ${endpointLabels[result.states[index]]}`}
               />
             ))}
           </div>
-          <span className="ip-scenario-count text-[10px] text-muted-foreground">
-            {rated}/{group.targets.length}
-          </span>
-          <span
-            className="ip-scenario-partial"
-            data-visible={partial}
-            title={partial ? t("部分结果") : undefined}
-            aria-label={partial ? t("部分结果") : undefined}
-            aria-hidden={!partial}
-          >
-            <Info size={11} aria-hidden="true" />
+          <span className="text-xs">
+            {result.readable}/{result.total}
           </span>
         </div>
       </TableCell>
       <TableCell>
-        <div className="ip-scenario-rating">
-          {average !== null ? (
-            <ScenarioStars stars={average} />
-          ) : (
-            <Badge variant="secondary">
-              {busy ? <Pending>{t("检测中…")}</Pending> : t("证据不足")}
-            </Badge>
-          )}
-        </div>
+        <span className="text-xs">
+          {t("拒绝 {0} · 限流 {1} · 未决 {2}", [
+            result.denied,
+            result.rateLimited,
+            result.unknown,
+          ])}
+        </span>
       </TableCell>
     </TableRow>
   );
@@ -486,12 +469,12 @@ export function ScenarioPanel({
   const [selected, setSelected] = useState<string | null>(null);
   const group = scenarioGroups.find((item) => item.id === selected);
   const summary = (targets: ScenarioTarget[]) =>
-    averageAccessRating(
+    summarizeAccessEvidence(
       targets.map((target) => access.records[target.url]),
       ip,
       now,
     );
-  const average = group ? summary(group.targets) : null;
+  const groupSummary = group ? summary(group.targets) : null;
   const key = group?.inbound ? "https" : "quality";
   const evidence = records[key];
   const quality = group?.quality
@@ -553,7 +536,7 @@ export function ScenarioPanel({
     </>
   );
   return (
-    <ToolCard title={t("应用场景评分")}>
+    <ToolCard title={t("应用场景响应")}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="ip-scenario-intro !mb-0">
           {t("自动检测 {0} 类场景、{1} 个平台，点击场景查看详情。", [
@@ -575,32 +558,18 @@ export function ScenarioPanel({
           <TableHeader>
             <TableRow>
               <TableHead>{t("应用场景")}</TableHead>
-              <TableHead>{t("检测覆盖")}</TableHead>
-              <TableHead>{t("平均评分")}</TableHead>
+              <TableHead>{t("可读响应 / 全部目标")}</TableHead>
+              <TableHead>{t("其他结果")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {scenarioGroups.map((item) => {
               const result = summary(item.targets);
-              const dots = item.targets
-                .map((target) => {
-                  const record = access.records[target.url];
-                  const rating = accessRating(record, ip, now);
-                  return rating.stars !== null
-                    ? String(rating.stars)
-                    : !record || record.state === "running"
-                      ? "_"
-                      : "!";
-                })
-                .join(",");
               return (
                 <ScenarioSummaryRow
                   key={item.id}
                   group={item}
-                  average={result.average}
-                  rated={result.rated}
-                  dots={dots}
-                  busy={access.busy}
+                  result={result}
                   onSelect={setSelected}
                 />
               );
@@ -613,33 +582,32 @@ export function ScenarioPanel({
         onOpenChange={(open) => {
           if (!open) setSelected(null);
         }}
-        title={group?.label ?? t("应用场景评分")}
-        description={t("当前网络访问评分；点击平台查看采样与出口证据。")}
+        title={group?.label ?? t("应用场景响应")}
+        description={t(
+          "当前浏览器的端点响应；点击平台查看全部样本与出口证据。",
+        )}
       >
-        {group && average && (
+        {group && groupSummary && (
           <div className="ip-scenario-dialog space-y-3 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span>{t("平均访问评分")}</span>
-              {average.average !== null ? (
-                <ScenarioStars stars={average.average} />
-              ) : (
-                <Badge variant="secondary">{t("证据不足")}</Badge>
-              )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">
+                {t("可读响应 {0}/{1}", [
+                  groupSummary.readable,
+                  groupSummary.total,
+                ])}
+              </Badge>
+              <span>
+                {t("拒绝 {0} · 限流 {1} · 未决 {2}", [
+                  groupSummary.denied,
+                  groupSummary.rateLimited,
+                  groupSummary.unknown,
+                ])}
+              </span>
               <p className="w-full text-muted-foreground">
                 {t(
-                  "已评 {0}/{1}，至少 {2} 个平台有效才生成均分；未评分项不计入。",
-                  [average.rated, average.total, average.required],
+                  "所有目标保留在统计内；不透明、未测、超时和不完整结果单列为未决。可读响应不代表应用功能可用。",
                 )}
               </p>
-              {average.rated < average.total && (
-                <Badge variant="warning">
-                  {access.busy ? (
-                    <Pending>{t("检测中…")}</Pending>
-                  ) : (
-                    t("部分结果")
-                  )}
-                </Badge>
-              )}
             </div>
             <AccessRows
               key={group.id}
@@ -730,20 +698,20 @@ export function ScenarioPanel({
         )}
       </ResponsiveDialog>
       <details className="mt-3 text-xs text-muted-foreground">
-        <summary className="cursor-pointer">{t("评分依据与检测范围")}</summary>
+        <summary className="cursor-pointer">{t("统计依据与检测范围")}</summary>
         <p className="mt-2">
           {t(
-            "每个平台至少 3 次有效响应；场景至少 3 个平台且覆盖 60% 后取星级均值，保留一位小数。",
+            "完成采样且至少 3 次均为可读响应，才计为可读响应目标；拒绝和限流保留在总目标数内。",
           )}
         </p>
         <p>
           {t(
-            "按 HTTP 响应耗时中位数评级：≤150 / 300 / 600 / 1000 / >1000 ms 对应 5 / 4 / 3 / 2 / 1 星；这是本站访问速度参考。",
+            "HTTP 响应耗时单独显示中位数与样本数量，不生成场景平均星级；失败请求不会从统计中消失。",
           )}
         </p>
         <p>
           {t(
-            "先完成基础采样再补齐至最多 8 次，整轮上限 20 秒。覆盖圆点代表各平台，详情圆点代表单次请求。",
+            "连续 3 次基础响应后结束短测；有异常时最多 8 次，整轮上限 20 秒。圆点保留每次请求记录。",
           )}
         </p>
         <p>
