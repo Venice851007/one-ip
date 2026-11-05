@@ -6,6 +6,7 @@ import { HomePageSkeleton } from "@/components/home-page-skeleton";
 import { LanguageSelect } from "@/components/language-select";
 import { AppUpdateChecker } from "@/components/providers/app-update-checker";
 import { SeoSync } from "@/components/seo-sync";
+import { SiteHub } from "@/components/site-hub";
 import { ThemeToggleButton } from "@/components/theme/theme-toggle-button";
 import { Pending } from "@/components/toolkit";
 import { AnimatedSegmentedTabs } from "@/components/ui/animated-segmented-tabs";
@@ -167,6 +168,7 @@ export function AppLayout() {
           </Tabs.Content>
         </AnimatedSegmentedTabs>
         <AdSlot name="footer" />
+        <SiteHub />
         <footer className="app-footer">
           <div>
             © {new Date().getFullYear()} {t("IP 查询工具")} ·{" "}

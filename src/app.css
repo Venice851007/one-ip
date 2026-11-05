@@ -916,6 +916,57 @@ body {
   margin-top: 4px;
   font-size: 0.75rem;
 }
+
+.site-hub {
+  font:
+    12px/1.55 system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Noto Sans SC",
+    sans-serif;
+  text-align: center;
+  padding: 10px 12px 4px;
+  margin: 8px auto 0;
+  max-width: 920px;
+  opacity: 0.95;
+  color: var(--subtle);
+  white-space: normal;
+}
+.site-hub__title {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.site-hub__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-hub__list a,
+.site-hub__list .is-current {
+  color: var(--primary, #4ecdc4);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 12px;
+}
+.site-hub__list a:hover {
+  text-decoration: underline;
+}
+.site-hub__list .is-current {
+  font-weight: 700;
+  color: var(--subtle);
+  border-color: color-mix(in srgb, var(--subtle) 45%, transparent);
+  cursor: default;
+}
+
 .update-notices {
   position: fixed;
   bottom: 16px;
