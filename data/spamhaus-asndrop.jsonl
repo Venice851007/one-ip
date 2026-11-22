@@ -137,6 +137,7 @@
 {"asn":134121,"rir":"apnic","domain":"itsidc.com","cc":"HK","asname":"RAINBOW-HK"}
 {"asn":134176,"rir":"apnic","domain":"cloudie.hk","cc":"HK","asname":"CLOUDIE-AS-AP"}
 {"asn":134196,"rir":"apnic","domain":"cloudie.hk","cc":"HK","asname":"ANYUN-INTERNET-TECHNOLOGY-HK-CO-LIMITED"}
+{"asn":134353,"rir":"apnic","domain":"netcocloud.com","cc":"BD","asname":"NetcoCloud-VirtuaIization-Technology"}
 {"asn":135271,"rir":"apnic","domain":"globtelgroup.com","cc":"US","asname":"GLOBTELGROUP-AS-AP"}
 {"asn":135388,"rir":"apnic","domain":"serveroffer.lt","cc":"LT","asname":"RPL-HK"}
 {"asn":135392,"rir":"apnic","domain":"tele-asia.net","cc":"HK","asname":"MILLENIALHOSTLIMITED-AS-GB"}
@@ -151,6 +152,8 @@
 {"asn":138808,"rir":"apnic","domain":"intechmandiri.com","cc":"ID","asname":"INTECHMANDIRI-AS-ID"}
 {"asn":138915,"rir":"apnic","domain":"kaopuyun.com","cc":"CN","asname":"KAOPU-HK"}
 {"asn":138968,"rir":"apnic","domain":"itsidc.com","cc":"HK","asname":"RAINBOWIDC-AS-AP"}
+{"asn":138995,"rir":"apnic","domain":"antboxnetwork.com","cc":"HK","asname":"ANTBOX1-AS-AP"}
+{"asn":139638,"rir":"apnic","domain":"antboxnetwork.com","cc":"HK","asname":"ANTBOX1-AS-AP"}
 {"asn":140125,"rir":"apnic","domain":"cyberauticssoftwares.co.in","cc":"IN","asname":"CYBERAUTICS-AS-IN"}
 {"asn":140129,"rir":"apnic","domain":"mabasafenet.com","cc":"IN","asname":"MSBSPL-AS-IN"}
 {"asn":140155,"rir":"apnic","domain":"thepinnaclegroup.in","cc":"IN","asname":"HOSTNET-AS-IN"}
@@ -454,4 +457,4 @@
 {"asn":402253,"rir":"arin","domain":"skntelecom.com","cc":"KN","asname":"SKN-NETWORK-1"}
 {"asn":402647,"rir":"arin","domain":"ipswat.com","cc":"US","asname":"NETRONEX_SOLUTIONS"}
 {"asn":403005,"rir":"arin","domain":"blatant.host","cc":"SC","asname":"BLATANTHOST"}
-{"type":"metadata","timestamp":1795244204,"size":40568,"records":456,"copyright":"(c) 2026 The Spamhaus Project SLU","terms":"https://www.spamhaus.org/drop/terms/"}
+{"type":"metadata","timestamp":1795375604,"size":40867,"records":459,"copyright":"(c) 2026 The Spamhaus Project SLU","terms":"https://www.spamhaus.org/drop/terms/"}
